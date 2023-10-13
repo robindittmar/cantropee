@@ -1,0 +1,23 @@
+body {
+    margin: 2rem;
+}
+
+#brand-image {
+    margin-top: 1rem;
+    max-width: 400px;
+}
+
+button {
+    margin-top: 1rem;
+    margin-right: 1rem;
+}
+
+.positive-value {
+    font-weight: bold;
+    color: #008000 !important;
+}
+
+.negative-value {
+    font-weight: bold;
+    color: #c20000 !important;
+}

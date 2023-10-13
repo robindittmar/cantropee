@@ -1,0 +1,97 @@
+<%- include('header', {title: title}) -%>
+
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <img id="brand-image" src="img/ratjam.gif" class="rounded mx-auto d-block"/>
+                <div class="card-body">
+                    <h5 class="card-title text-center">
+                        <%= title %>
+                    </h5>
+                    <% if (data.total.toDecimal() > 0) { %>
+                        <h1 class="card-title text-center text-success">
+                            <%= data.total.currency + ' ' + data.total.toString() %>
+                        </h1>
+                    <% } else { %>
+                        <h1 class="card-title text-center text-danger">
+                            <%= data.total.currency + ' ' + data.total.toString() %>
+                        </h1>
+                    <% } %>
+                    <div class="row">
+                        <div class="col">
+                            <button type="button" onclick="console.log('yes')" class="btn btn-success w-100">
+                                <i class="fa-solid fa-arrow-up"></i>
+                            </button>
+                        </div>
+                        <div class="col">
+                            <button type="button" onclick="console.log('no')" class="btn btn-danger w-100">
+                                <i class="fa-solid fa-arrow-down"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <table class="table">
+                    <thead>
+                    <th scope="col">#</th>
+                    <th scope="col">Buchungsdatum</th>
+                    <th scope="col">Betrag</th>
+                    <th scope="col">19%</th>
+                    <th scope="col">7%</th>
+                    </thead>
+                    <tbody>
+                    <% let localeOptions = {weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'}; %>
+                    <% for (let transaction of data.history) { %>
+                        <tr>
+                            <% if (transaction.value.toDecimal() > 0) { %>
+                                <th class="positive-value" scope='row'>
+                                    <%= transaction.id %>
+                                </th>
+                                <td>
+                                    <%= transaction.effectiveTimestamp.toLocaleString('de-DE', localeOptions) %>
+                                </td>
+                                <td class="positive-value">
+                                    <%= transaction.value.currency + ' ' + transaction.value.toString() %>
+                                </td>
+                                <td>
+                                    <%= transaction.vat19.currency + ' ' + transaction.vat19.toString() %>
+                                </td>
+                                <td>
+                                    <%= transaction.vat7.currency + ' ' + transaction.vat7.toString() %>
+                                </td>
+                            <% } else { %>
+                                <th class="negative-value" scope='row'>
+                                    <%= transaction.id %>
+                                </th>
+                                <td>
+                                    <%= transaction.effectiveTimestamp.toLocaleString('de-DE', localeOptions) %>
+                                </td>
+                                <td class="negative-value">
+                                    <%= transaction.value.currency + ' ' + transaction.value.toString() %>
+                                </td>
+                                <td>
+                                    <%= transaction.vat19.currency + ' ' + transaction.vat19.toString() %>
+                                </td>
+                                <td>
+                                    <%= transaction.vat7.currency + ' ' + transaction.vat7.toString() %>
+                                </td>
+                            <% } %>
+                        </tr>
+                    <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/index.js"></script>
+
+<%- include('footer') -%>
