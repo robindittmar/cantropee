@@ -4,7 +4,7 @@ import express from 'express';
 import {initDatabaseConnection} from "./core/database";
 import path from "path";
 import {indexRouter} from "./routes";
-import {transactionsRouter} from "./routes/api/transactions";
+import {transactionsRouter} from "./routes/api/transactions-route";
 
 
 async function main() {

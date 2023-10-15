@@ -1,6 +1,8 @@
 import {getConnection} from "../core/database";
 import {CountAllResult, TransactionModel} from "../models/transaction-model";
 import {Currencies, Money} from "ts-money";
+import {ResultSetHeader} from "mysql2";
+import {BalanceModel} from "../models/balance-model";
 
 
 export interface Transaction {
@@ -17,72 +19,101 @@ export interface Transaction {
 
 export interface PaginatedTransactions {
     total: number;
-    limit: number;
-    offset: number;
+    start: number;
+    count: number;
     data: Transaction[];
 }
 
-export interface CurrentTotal {
+export interface Balance {
     total: Money;
-    history: Transaction[];
+    vat19: Money;
+    vat7: Money;
 }
 
-export async function getCurrentBalance(startingFrom: Date = new Date(1970, 1, 1)): Promise<CurrentTotal> {
-    let transactions: Transaction[] = [];
-
+async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date()): Promise<Money> {
     const conn = await getConnection();
     const [rows] = await conn.query<TransactionModel[]>(
         'SELECT * FROM `transactions`' +
         ' WHERE `active` = true' +
         ' AND `effective_timestamp` > ?' +
-        ' AND `effective_timestamp` <= NOW()' +
-        ' ORDER BY `effective_timestamp`, `id` ASC',
-        [startingFrom]
+        ' AND `effective_timestamp` <= ?' +
+        ' ORDER BY `effective_timestamp` ASC, `id` ASC',
+        [startingFrom, endingAt]
     );
 
     let total = new Money(0, Currencies['EUR']!);
+    let totalVat19 = new Money(0, Currencies['EUR']!);
+    let totalVat7 = new Money(0, Currencies['EUR']!);
     for (let row of rows) {
         const value = new Money(row.value, Currencies['EUR']!);
+        const vat19 = new Money(row.vat19 ?? 0, Currencies['EUR']!)
+        const vat7 = new Money(row.vat7 ?? 0, Currencies['EUR']!);
 
-        transactions.push({
-            id: row.id,
-            refId: row.ref_id,
-            insertTimestamp: row.insert_timestamp,
-            effectiveTimestamp: row.effective_timestamp,
-            value,
-            value7: new Money(row.value7 ?? 0, Currencies['EUR']!),
-            value19: new Money(row.value19 ?? 0, Currencies['EUR']!),
-            vat7: new Money(row.vat7 ?? 0, Currencies['EUR']!),
-            vat19: new Money(row.vat19 ?? 0, Currencies['EUR']!),
-        });
         total = total.add(value);
+        totalVat19 = totalVat19.add(vat19);
+        totalVat7 = totalVat7.add(vat7);
+    }
+
+    const [res] = await conn.execute<ResultSetHeader>(
+        'INSERT INTO `balance`' +
+        ' (effective_from, effective_to, value, vat19, vat7)' +
+        ' VALUES (?,?,?,?,?)',
+        [startingFrom, endingAt, total.amount, totalVat19.amount, totalVat7.amount]
+    );
+
+    if (res.affectedRows < 1) {
+        throw new Error('Could not write balance');
     }
 
     conn.release();
 
+    return total;
+}
+
+export async function getCurrentBalance(): Promise<Balance> {
+    await recalculateBalance();
+
+    const conn = await getConnection();
+    const [rows] = await conn.query<BalanceModel[]>(
+        'SELECT * FROM `balance`' +
+        ' ORDER BY `id` DESC' +
+        ' LIMIT 1'
+    );
+
+    if (rows.length < 1) {
+        throw Error('No balance found');
+    }
+
+    let total = new Money(rows[0]?.value ?? 0, Currencies['EUR']!);
+    let vat19 = new Money(rows[0]?.vat19 ?? 0, Currencies['EUR']!);
+    let vat7 = new Money(rows[0]?.vat7 ?? 0, Currencies['EUR']!);
+
+    conn.release();
+
     return {
-        total: total,
-        history: transactions.reverse(),
+        total,
+        vat19,
+        vat7,
     };
 }
 
-export async function getTransactions(startingFrom: Date, limit: number, offset: number): Promise<PaginatedTransactions> {
+export async function getTransactions(startingFrom: Date, start: number, count: number): Promise<PaginatedTransactions> {
     let result: PaginatedTransactions = {
         total: 0,
-        limit: limit,
-        offset: offset,
+        start: start,
+        count: 0,
         data: []
     };
 
     const conn = await getConnection();
-    const [count] = await conn.query<CountAllResult[]>(
-        'SELECT COUNT(*) AS count FROM `transaction`' +
+    const [res] = await conn.query<CountAllResult[]>(
+        'SELECT COUNT(*) AS count FROM `transactions`' +
         ' WHERE `active` = true' +
         ' AND `effective_timestamp` > ?' +
         ' AND `effective_timestamp` <= NOW()',
         [startingFrom]
     );
-    result.total = count[0]?.count ?? -1;
+    result.total = res[0]?.count ?? -1;
 
 
     const [rows] = await conn.query<TransactionModel[]>(
@@ -90,9 +121,9 @@ export async function getTransactions(startingFrom: Date, limit: number, offset:
         ' WHERE `active` = true' +
         ' AND `effective_timestamp` > ?' +
         ' AND `effective_timestamp` <= NOW()' +
-        ' ORDER BY `effective_timestamp`, `id` DESC' +
-        ' LIMIT ? OFFSET ?',
-        [startingFrom, limit, offset]
+        ' ORDER BY `effective_timestamp` DESC, `id` DESC' +
+        ' LIMIT ?,?',
+        [startingFrom, start, count]
     );
 
     for (let row of rows) {
@@ -107,6 +138,8 @@ export async function getTransactions(startingFrom: Date, limit: number, offset:
             vat7: new Money(row.vat7 ?? 0, Currencies['EUR']!),
             vat19: new Money(row.vat19 ?? 0, Currencies['EUR']!),
         });
+
+        result.count += 1;
     }
 
     conn.release();

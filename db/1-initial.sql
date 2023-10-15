@@ -26,7 +26,11 @@ create table balance
 (
     id               BIGINT auto_increment,
     insert_timestamp datetime default NOW() not null,
+    effective_from   datetime               not null,
+    effective_to     datetime               not null,
     value            BIGINT                 not null,
+    vat19            BIGINT                 not null,
+    vat7             BIGINT                 not null,
     constraint transactions_pk
         primary key (id)
 );

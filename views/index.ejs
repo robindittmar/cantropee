@@ -34,31 +34,52 @@
         <div class="row">
             <div class="col">
                 <div class="card">
-                    <table class="table">
-                        <thead>
-                        <th scope="col">#</th>
-                        <th scope="col">Buchungsdatum</th>
-                        <th scope="col">Betrag</th>
-                        <th scope="col">19%</th>
-                        <th scope="col">7%</th>
-                        </thead>
-                        <tbody>
-                        <tr v-for="transaction in balance.history">
-                            <th :class="{'positive-value': transaction.isPositive, 'negative-value': !transaction.isPositive}"
-                                scope="row">
-                                {{ transaction.id }}
-                            </th>
-                            <td>{{ dateToString(transaction.effectiveTimestamp) }}</td>
-                            <td :class="{'positive-value': transaction.isPositive, 'negative-value': !transaction.isPositive}">
-                                {{
-                                    moneyToString(transaction.value)
-                                }}
-                            </td>
-                            <td>{{ moneyToString(transaction.vat19) }}</td>
-                            <td>{{ moneyToString(transaction.vat7) }}</td>
-                        </tr>
-                        </tbody>
-                    </table>
+                    <div class="row">
+                        <div class="col">
+                            <table class="table">
+                                <thead>
+                                <th scope="col">#</th>
+                                <th scope="col">Buchungsdatum</th>
+                                <th scope="col">Betrag</th>
+                                <th scope="col">19%</th>
+                                <th scope="col">7%</th>
+                                </thead>
+                                <tbody>
+                                <tr v-for="transaction in transactions.data">
+                                    <th :class="{'positive-value': transaction.isPositive, 'negative-value': !transaction.isPositive}"
+                                        scope="row">
+                                        {{ transaction.id }}
+                                    </th>
+                                    <td>{{ dateToString(transaction.effectiveTimestamp) }}</td>
+                                    <td :class="{'positive-value': transaction.isPositive, 'negative-value': !transaction.isPositive}">
+                                        {{
+                                            moneyToString(transaction.value)
+                                        }}
+                                    </td>
+                                    <td>{{ moneyToString(transaction.vat19) }}</td>
+                                    <td>{{ moneyToString(transaction.vat7) }}</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <p>{{ transactions.start + 1 }} - {{ transactions.start + transactions.count }}</p>
+                        </div>
+                        <div class="col">
+                            <button @click="prevPage" :disabled="transactions.start === 0" class="btn btn-primary">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                        </div>
+                        <div class="col">
+                            <button @click="nextPage"
+                                    :disabled="transactions.start + transactions.count >= transactions.total"
+                                    class="btn btn-primary">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
