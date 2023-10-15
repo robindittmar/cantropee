@@ -1,12 +1,12 @@
 import express from 'express';
-import {getCurrentTotal} from "../services/transaction-service";
+import {getCurrentBalance} from "../services/transaction-service";
 
 export const indexRouter = express.Router();
 
 
 indexRouter.get('/', async (_req, res) => {
-    let data = await getCurrentTotal();
-    
+    let data = await getCurrentBalance();
+
     res.render('index', {title: 'cantropee', data});
 });
 
