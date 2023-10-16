@@ -138,11 +138,31 @@ export async function getTransactions(startingFrom: Date, start: number, count: 
             vat7: new Money(row.vat7 ?? 0, Currencies['EUR']!),
             vat19: new Money(row.vat19 ?? 0, Currencies['EUR']!),
         });
-
+        console.log(row.effective_timestamp);
         result.count += 1;
     }
 
     conn.release();
 
     return result;
+}
+
+export async function insertTransaction(t: Transaction) {
+    const conn = await getConnection();
+    const [res] = await conn.query<ResultSetHeader>(
+        'INSERT INTO `transactions`' +
+        ' (effective_timestamp, ref_id, value, value19, value7, vat19, vat7)' +
+        ' VALUES (?,?,?,?,?,?,?)',
+        [
+            t.effectiveTimestamp,
+            t.refId,
+            t.value,
+            t.value19,
+            t.value7,
+            t.vat19,
+            t.vat7
+        ]
+    );
+
+    return {id: res.insertId};
 }

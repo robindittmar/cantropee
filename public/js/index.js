@@ -1,4 +1,9 @@
 (() => {
+    window.onload = () => {
+
+        document.querySelector('#datetime').value = new Date().toString();
+    };
+
     const {createApp} = Vue;
 
     const navigationStep = 10;
@@ -62,7 +67,14 @@
                 return m.currency + ' ' + (m.amount / 100).toFixed(2);
             },
             dateToString(d) {
-                const localeOptions = {weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'};
+                const localeOptions = {
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                };
                 return d.toLocaleString('de-DE', localeOptions);
             }
         }
