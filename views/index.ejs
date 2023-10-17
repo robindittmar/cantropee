@@ -8,20 +8,25 @@
                 <div class="card">
                     <img id="brand-image" src="img/cat-jam.gif" class="rounded mx-auto d-block"/>
                     <div class="card-body">
-                        <h5 class="card-title text-center">
-                            <%= title %>
-                        </h5>
-                        <h1 class="card-title text-center text-success">
-                            {{ moneyToString(balance.total) }}
-                        </h1>
+                        <div class="row">
+                            <h5 class="card-title text-center">
+                                <%= title %>
+                            </h5>
+                            <h1 class="card-title text-center text-success">
+                                {{ moneyToString(balance.total) }}
+                            </h1>
+                            <span class="text-center text-sm-center">{{ moneyToString(balance.vat.total) }}</span>
+                        </div>
                         <div class="row">
                             <div class="col">
-                                <button type="button" onclick="console.log('yes')" class="btn btn-success w-100">
+                                <button type="button" class="btn btn-success w-100" data-bs-toggle="modal"
+                                        data-bs-target="#depositModal">
                                     <i class="fa-solid fa-arrow-up"></i>
                                 </button>
                             </div>
                             <div class="col">
-                                <button type="button" onclick="console.log('no')" class="btn btn-danger w-100">
+                                <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal"
+                                        data-bs-target="#withdrawModal">
                                     <i class="fa-solid fa-arrow-down"></i>
                                 </button>
                             </div>
@@ -83,11 +88,98 @@
                 </div>
             </div>
         </div>
-        <div class="row">
-            <div class="col">
-                <label>
-                    <input id="datetime" type="datetime-local"/>
-                </label>
+    </div>
+
+    <div class="modal fade" id="depositModal" tabindex="-1" aria-labelledby="depositModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="depositModalLabel">Einzahlen</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="mb-3">
+                            <label for="group-value" class="form-label">Betrag</label>
+                            <div id="group-value" class="input-group mb-3">
+                                <span class="input-group-text" id="depositValueAddon">EUR</span>
+                                <input id="depositValue" class="form-control"
+                                       aria-describedby="depositValueAddon" type="number" step=".01"/>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="depositDateTime" class="form-label">Buchungsdatum</label>
+                            <input id="depositDateTime" class="form-control" type="datetime-local"/>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="resetDepositValues()"
+                            data-bs-dismiss="modal">
+                        Doch nicht
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="submitDeposit">
+                        Buchen
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="withdrawModal" tabindex="-1" aria-labelledby="withdrawModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="withdrawModalLabel">Auszahlen</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="mb-3">
+                            <label for="withdraw-group-value" class="form-label">Betrag</label>
+                            <div id="withdraw-group-value" class="input-group mb-3">
+                                <span class="input-group-text" id="withdrawValueAddon">EUR</span>
+                                <input id="withdrawValue" class="form-control"
+                                       aria-describedby="withdrawValueAddon" type="number" step=".01"/>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="withdraw-group-value19" class="form-label">19% Anteil | 19% Steuern</label>
+                            <div id="withdraw-group-value19" class="input-group mb-3">
+                                <span class="input-group-text" id="withdrawValue19addon">EUR</span>
+                                <input id="withdrawValue19" class="form-control"
+                                       aria-describedby="withdrawValue19addon" type="number" step=".01"/>
+                                <span class="input-group-text" id="withdrawVat19addon">EUR</span>
+                                <input id="withdrawVat19" class="form-control" aria-describedby="withdrawVat19addon"
+                                       type="text" step=".01" disabled/>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="withdraw-group-value7" class="form-label">7% Anteil | 7% Steuern</label>
+                            <div id="withdraw-group-value7" class="input-group mb-3">
+                                <span class="input-group-text" id="withdrawValue7addon">EUR</span>
+                                <input id="withdrawValue7" class="form-control"
+                                       aria-describedby="withdrawValue7addon" type="number" step=".01"/>
+                                <span class="input-group-text" id="withdrawVat7addon">EUR</span>
+                                <input id="withdrawVat7" class="form-control" aria-describedby="withdrawVat7addon"
+                                       type="text" step=".01" disabled/>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="withdrawDateTime" class="form-label">Buchungsdatum</label>
+                            <input id="withdrawDateTime" class="form-control" type="datetime-local"/>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="resetWithdrawValues()"
+                            data-bs-dismiss="modal">
+                        Doch nicht
+                    </button>
+                    <button type="button" class="btn btn-primary" @click="submitWithdrawal">
+                        Buchen
+                    </button>
+                </div>
             </div>
         </div>
     </div>

@@ -26,8 +26,11 @@ export interface PaginatedTransactions {
 
 export interface Balance {
     total: Money;
-    vat19: Money;
-    vat7: Money;
+    vat: {
+        total: Money;
+        vat19: Money;
+        vat7: Money;
+    }
 }
 
 async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date()): Promise<Money> {
@@ -87,13 +90,17 @@ export async function getCurrentBalance(): Promise<Balance> {
     let total = new Money(rows[0]?.value ?? 0, Currencies['EUR']!);
     let vat19 = new Money(rows[0]?.vat19 ?? 0, Currencies['EUR']!);
     let vat7 = new Money(rows[0]?.vat7 ?? 0, Currencies['EUR']!);
+    let vatTotal = vat19.add(vat7);
 
     conn.release();
 
     return {
         total,
-        vat19,
-        vat7,
+        vat: {
+            total: vatTotal,
+            vat19,
+            vat7,
+        }
     };
 }
 
@@ -138,7 +145,6 @@ export async function getTransactions(startingFrom: Date, start: number, count: 
             vat7: new Money(row.vat7 ?? 0, Currencies['EUR']!),
             vat19: new Money(row.vat19 ?? 0, Currencies['EUR']!),
         });
-        console.log(row.effective_timestamp);
         result.count += 1;
     }
 
@@ -154,13 +160,13 @@ export async function insertTransaction(t: Transaction) {
         ' (effective_timestamp, ref_id, value, value19, value7, vat19, vat7)' +
         ' VALUES (?,?,?,?,?,?,?)',
         [
-            t.effectiveTimestamp,
+            t.effectiveTimestamp.toISOString().slice(0, 19).replace('T', ' '),
             t.refId,
-            t.value,
-            t.value19,
-            t.value7,
-            t.vat19,
-            t.vat7
+            t.value.amount,
+            t.value19.amount,
+            t.value7.amount,
+            t.vat19.amount,
+            t.vat7.amount,
         ]
     );
 

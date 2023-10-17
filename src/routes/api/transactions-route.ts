@@ -1,5 +1,6 @@
 import express from 'express';
 import {getCurrentBalance, getTransactions, insertTransaction, Transaction} from "../../services/transaction-service";
+import {Currencies, Money} from "ts-money";
 
 export const transactionsRouter = express.Router();
 
@@ -21,17 +22,17 @@ transactionsRouter.get('/', async (req, res) => {
 });
 
 transactionsRouter.post('/', async (req, res) => {
-    let transactionReq = req.body.json();
+    let transactionReq = req.body;
     let transaction: Transaction = {
         id: 0,
         refId: transactionReq.refId,
         insertTimestamp: new Date(),
-        effectiveTimestamp: transactionReq.effectiveTimestamp,
-        value: transactionReq.value,
-        value19: transactionReq.value19,
-        value7: transactionReq.value7,
-        vat19: transactionReq.vat19,
-        vat7: transactionReq.vat7,
+        effectiveTimestamp: new Date(transactionReq.effectiveTimestamp),
+        value: new Money(transactionReq.value, Currencies['EUR']!),
+        value19: new Money(transactionReq.value19, Currencies['EUR']!),
+        value7: new Money(transactionReq.value7, Currencies['EUR']!),
+        vat19: new Money(transactionReq.vat19, Currencies['EUR']!),
+        vat7: new Money(transactionReq.vat7, Currencies['EUR']!),
     };
     let result = await insertTransaction(transaction);
 
