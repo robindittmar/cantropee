@@ -13,4 +13,5 @@ export interface BalanceModel extends RowDataPacket {
     value: number;
     vat19: number;
     vat7: number;
+    dirty: boolean;
 }

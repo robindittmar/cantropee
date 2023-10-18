@@ -66,6 +66,7 @@ const resetWithdrawValues = () => {
         data: () => ({
             balance: {
                 total: {amount: 0, currency: 'EUR'},
+                isPositive: true,
                 vat: {
                     total: {amount: 0, currency: 'EUR'},
                     vat19: {amount: 0, currency: 'EUR'},
@@ -87,6 +88,7 @@ const resetWithdrawValues = () => {
             async fetchBalance() {
                 const res = await fetch('/api/transactions/balance');
                 this.balance = await res.json();
+                this.balance.isPositive = this.balance.total.amount >= 0;
                 this.loading = false;
             },
             async fetchTransactions() {

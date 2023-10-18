@@ -31,6 +31,7 @@ create table balance
     value            BIGINT                 not null,
     vat19            BIGINT                 not null,
     vat7             BIGINT                 not null,
+    dirty            boolean  default false not null,
     constraint transactions_pk
         primary key (id)
 );

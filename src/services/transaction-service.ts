@@ -33,7 +33,7 @@ export interface Balance {
     }
 }
 
-async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date()): Promise<Money> {
+async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date()): Promise<BalanceModel> {
     const conn = await getConnection();
     const [rows] = await conn.query<TransactionModel[]>(
         'SELECT * FROM `transactions`' +
@@ -70,21 +70,32 @@ async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), end
 
     conn.release();
 
-    return total;
+    return {
+        constructor: {name: "RowDataPacket"},
+        id: res.insertId,
+        insert_timestamp: new Date(),
+        effective_from: startingFrom,
+        effective_to: endingAt,
+        value: total.amount,
+        vat19: totalVat19.amount,
+        vat7: totalVat7.amount,
+        dirty: false
+    };
 }
 
 export async function getCurrentBalance(): Promise<Balance> {
-    await recalculateBalance();
-
     const conn = await getConnection();
-    const [rows] = await conn.query<BalanceModel[]>(
+    let [rows] = await conn.query<BalanceModel[]>(
         'SELECT * FROM `balance`' +
         ' ORDER BY `id` DESC' +
         ' LIMIT 1'
     );
 
     if (rows.length < 1) {
-        throw Error('No balance found');
+        rows = [await recalculateBalance()];
+    }
+    if (rows[0]?.dirty) {
+        rows = [await recalculateBalance()];
     }
 
     let total = new Money(rows[0]?.value ?? 0, Currencies['EUR']!);
@@ -169,6 +180,13 @@ export async function insertTransaction(t: Transaction) {
             t.vat7.amount,
         ]
     );
+
+    const [update] = await conn.execute<ResultSetHeader>(
+        'UPDATE `balance` SET `dirty` = true WHERE `dirty` = false'
+    );
+    if (update.affectedRows < 1) {
+        throw new Error('Could not mark balance as dirty');
+    }
 
     return {id: res.insertId};
 }

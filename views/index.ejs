@@ -12,7 +12,8 @@
                             <h5 class="card-title text-center">
                                 <%= title %>
                             </h5>
-                            <h1 class="card-title text-center text-success">
+                            <h1 class="card-title text-center"
+                                :class="{'text-success': balance.isPositive, 'text-danger': !balance.isPositive}">
                                 {{ moneyToString(balance.total) }}
                             </h1>
                             <span class="text-center text-sm-center">{{ moneyToString(balance.vat.total) }}</span>
