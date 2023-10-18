@@ -8,7 +8,8 @@ import {transactionsRouter} from "./routes/api/transactions-route";
 
 
 async function main() {
-    dotenv.config();
+    let conf = dotenv.config();
+    console.log(`$ initializing with ${JSON.stringify(conf.parsed)}`);
 
     initDatabaseConnection();
 
