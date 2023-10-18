@@ -11,7 +11,7 @@ transactionsRouter.get('/', async (req, res) => {
         throw new Error('start must be provided in query');
     }
     if (typeof count !== 'string') {
-        throw new Error('offset must be provided in query');
+        throw new Error('count must be provided in query');
     }
 
     let startInt = parseInt(start);
