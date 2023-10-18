@@ -2,6 +2,18 @@ create schema if not exists cantropee;
 
 use cantropee;
 
+create table sessions
+(
+    id               BIGINT auto_increment,
+    insert_timestamp datetime default NOW() not null,
+    valid_until      datetime               not null,
+    session_id       varchar(256)           not null,
+    constraint sessions_pk
+        primary key (id)
+);
+create index sessions_valid_until_index
+    on sessions (valid_until);
+
 create table transactions
 (
     id                  BIGINT auto_increment,

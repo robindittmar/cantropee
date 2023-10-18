@@ -5,6 +5,8 @@ import {initDatabaseConnection} from "./core/database";
 import path from "path";
 import {indexRouter} from "./routes";
 import {transactionsRouter} from "./routes/api/transactions-route";
+import {loginRouter} from "./routes/login";
+import cookieParser from "cookie-parser";
 
 
 async function main() {
@@ -20,11 +22,13 @@ async function main() {
     app.set('view engine', 'ejs');
     app.set('views', path.join(__dirname, '../views'));
 
-    app.use(logger(loggerFormat))
+    app.use(logger(loggerFormat));
     app.use(express.json());
+    app.use(cookieParser());
     app.use(express.static(path.join(__dirname, '../public')));
 
     app.use('/', indexRouter);
+    app.use('/login', loginRouter);
     app.use('/api/transactions', transactionsRouter);
 
     app.listen(port, () => {
