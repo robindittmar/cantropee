@@ -7,6 +7,7 @@ import {indexRouter} from "./routes";
 import {transactionsRouter} from "./routes/api/transactions-route";
 import {loginRouter} from "./routes/login";
 import cookieParser from "cookie-parser";
+import {requireLogin} from "./services/login-service";
 
 
 async function main() {
@@ -24,11 +25,15 @@ async function main() {
 
     app.use(logger(loggerFormat));
     app.use(express.json());
+    app.use(express.urlencoded({extended: true}));
     app.use(cookieParser());
-    app.use(express.static(path.join(__dirname, '../public')));
+    app.use(requireLogin);
 
+    app.use('/public', express.static(path.join(__dirname, '../static/public')));
+    app.use('/secure', express.static(path.join(__dirname, '../static/secure')));
     app.use('/', indexRouter);
     app.use('/login', loginRouter);
+    app.use('/api/transactions', requireLogin);
     app.use('/api/transactions', transactionsRouter);
 
     app.listen(port, () => {

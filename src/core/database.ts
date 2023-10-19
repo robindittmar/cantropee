@@ -9,7 +9,8 @@ export function initDatabaseConnection() {
         password: 'cantropee',
         port: 3306,
         charset: 'utf8',
-        database: 'cantropee'
+        database: 'cantropee',
+        timezone: 'Z',
     });
 }
 

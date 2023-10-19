@@ -19,7 +19,7 @@ COPY package.json package-lock.json ./
 
 RUN npm ci --omit=dev
 
-COPY ./public ./public
+COPY static ./static
 COPY ./views ./views
 
 COPY --from=build /app/dist/ ./dist/
