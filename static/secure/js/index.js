@@ -31,6 +31,11 @@ const resetWithdrawValues = () => {
         const withdrawVat19 = document.querySelector('#withdrawVat19');
         const withdrawVat7 = document.querySelector('#withdrawVat7');
 
+        withdrawValue.addEventListener('change', () => {
+            withdrawValue19.value = withdrawValue.value;
+            withdrawValue19.dispatchEvent(new Event('change'));
+        });
+
         withdrawValue19.addEventListener('change', () => {
             let value = withdrawValue.value * 100;
             let value19 = withdrawValue19.value * 100;
