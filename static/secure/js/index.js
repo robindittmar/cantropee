@@ -11,15 +11,21 @@ const resetWithdrawValues = () => {
 };
 
 (() => {
+    const TIMEZONE_OFFSET = (new Date()).getTimezoneOffset() * 60000;
+
+    makeLocalDateStringForInput = () => {
+        return new Date(Date.now() - TIMEZONE_OFFSET).toISOString().slice(0, 16);
+    }
+
     window.onload = () => {
         const depositModal = document.querySelector('#depositModal');
         depositModal.addEventListener('shown.bs.modal', () => {
-            document.querySelector('#depositDateTime').valueAsDate = new Date();
+            document.querySelector('#depositDateTime').value = makeLocalDateStringForInput();
         });
 
         const withdrawModal = document.querySelector('#withdrawModal');
         withdrawModal.addEventListener('shown.bs.modal', () => {
-            document.querySelector('#withdrawDateTime').valueAsDate = new Date();
+            document.querySelector('#withdrawDateTime').value = makeLocalDateStringForInput();
         });
 
         resetDepositValues();
@@ -113,7 +119,7 @@ const resetWithdrawValues = () => {
                 const depositDateTime = document.querySelector('#depositDateTime');
 
                 const payload = {
-                    effectiveTimestamp: depositDateTime.valueAsDate,
+                    effectiveTimestamp: new Date(depositDateTime.value),
                     value: depositValue.value * 100,
                     value19: 0,
                     value7: 0,
@@ -143,7 +149,7 @@ const resetWithdrawValues = () => {
                 const withdrawDateTime = document.querySelector('#withdrawDateTime');
 
                 const payload = {
-                    effectiveTimestamp: withdrawDateTime.valueAsDate,
+                    effectiveTimestamp: new Date(withdrawDateTime.value),
                     value: -(withdrawValue.value * 100),
                     value19: -(withdrawValue19.value * 100),
                     value7: -(withdrawValue7.value * 100),
