@@ -1,11 +1,11 @@
 INSERT INTO cantropee.categories (id, name)
-VALUES (0, "Nicht spezifiziert");
+VALUES (1, "Nicht spezifiziert");
 INSERT INTO cantropee.categories (id, name)
-VALUES (1, "Einkauf");
+VALUES (2, "Einkauf");
 INSERT INTO cantropee.categories (id, name)
-VALUES (2, "Kassenabschöpfung");
+VALUES (3, "Kassenabschöpfung");
 INSERT INTO cantropee.categories (id, name)
-VALUES (3, "Lohnzahlung");
+VALUES (4, "Lohnzahlung");
 
 INSERT INTO cantropee.transactions (id, insert_timestamp, effective_timestamp, active, ref_id, category_id, value,
                                     value19, value7,
