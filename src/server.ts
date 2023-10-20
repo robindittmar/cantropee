@@ -1,13 +1,14 @@
+import path from "path";
 import dotenv from 'dotenv';
 import logger from 'morgan';
 import express from 'express';
-import {initDatabaseConnection} from "./core/database";
-import path from "path";
-import {indexRouter} from "./routes";
-import {transactionsRouter} from "./routes/api/transactions-route";
-import {loginRouter} from "./routes/login";
 import cookieParser from "cookie-parser";
 import {requireLogin} from "./services/login-service";
+import {initDatabaseConnection} from "./core/database";
+import {indexRouter} from "./routes/index-route";
+import {loginRouter} from "./routes/login-route";
+import {transactionsRouter} from "./routes/api/transactions-route";
+import {categoriesRouter} from "./routes/api/categories-route";
 
 
 async function main() {
@@ -31,9 +32,10 @@ async function main() {
 
     app.use('/public', express.static(path.join(__dirname, '../static/public')));
     app.use('/secure', express.static(path.join(__dirname, '../static/secure')));
+
     app.use('/', indexRouter);
     app.use('/login', loginRouter);
-    app.use('/api/transactions', requireLogin);
+    app.use('/api/categories', categoriesRouter);
     app.use('/api/transactions', transactionsRouter);
 
     app.listen(port, () => {

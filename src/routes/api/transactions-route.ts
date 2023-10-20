@@ -1,12 +1,24 @@
 import express from 'express';
-import {getCurrentBalance, getTransactions, insertTransaction, Transaction} from "../../services/transaction-service";
+import {
+    getBalance,
+    getTransaction,
+    getTransactions,
+    insertTransaction,
+    Transaction
+} from "../../services/transaction-service";
 import {Currencies, Money} from "ts-money";
 
 export const transactionsRouter = express.Router();
 
 
 transactionsRouter.get('/', async (req, res) => {
-    let {start, count} = req.query;
+    let {from, to, start, count} = req.query;
+    if (typeof from !== 'string') {
+        throw new Error('from must be provided in query');
+    }
+    if (typeof to !== 'string') {
+        throw new Error('to must be provided in query');
+    }
     if (typeof start !== 'string') {
         throw new Error('start must be provided in query');
     }
@@ -14,10 +26,22 @@ transactionsRouter.get('/', async (req, res) => {
         throw new Error('count must be provided in query');
     }
 
-    let startInt = parseInt(start);
-    let offsetInt = parseInt(count);
+    const startInt = parseInt(start);
+    const offsetInt = parseInt(count);
+    const effectiveFrom = new Date(from);
+    const effectiveTo = new Date(to);
 
-    let result = await getTransactions(new Date(1970, 1, 1), startInt, offsetInt);
+    let result = await getTransactions(effectiveFrom, effectiveTo, startInt, offsetInt);
+    res.send(result);
+});
+
+transactionsRouter.get('/:id(\\d+)', async (req, res) => {
+    let id = parseInt(req.params['id'] ?? '0');
+    if (id.toString() != req.params['id']) {
+        throw new Error('id must be a number');
+    }
+
+    let result = await getTransaction(id);
     res.send(result);
 });
 
@@ -26,6 +50,7 @@ transactionsRouter.post('/', async (req, res) => {
     let transaction: Transaction = {
         id: 0,
         refId: transactionReq.refId,
+        category: transactionReq.category,
         insertTimestamp: new Date(),
         effectiveTimestamp: new Date(transactionReq.effectiveTimestamp),
         value: new Money(transactionReq.value, Currencies['EUR']!),
@@ -39,7 +64,18 @@ transactionsRouter.post('/', async (req, res) => {
     res.send(result);
 });
 
-transactionsRouter.get('/balance', async (_req, res) => {
-    let result = await getCurrentBalance();
+transactionsRouter.get('/balance', async (req, res) => {
+    let {from, to} = req.query;
+    if (typeof from !== 'string') {
+        throw new Error('from must be provided in query');
+    }
+    if (typeof to !== 'string') {
+        throw new Error('to must be provided in query');
+    }
+
+    const effectiveFrom = new Date(from);
+    const effectiveTo = new Date(to);
+
+    let result = await getBalance(effectiveFrom, effectiveTo);
     res.send(result);
 });

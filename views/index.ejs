@@ -37,7 +37,23 @@
             </div>
         </div>
 
-        <div class="row">
+        <div class="row mt-2">
+            <div class="col">
+                <div class="input-group mb-3">
+                    <input id="effectiveFrom" class="form-control"
+                           aria-describedby="effectiveDivider" type="datetime-local"
+                           :value="convertLocalDateStringForInput(effectiveFrom)"
+                           disabled/>
+                    <span class="input-group-text" id="effectiveDivider">-</span>
+                    <input id="effectiveTo" class="form-control"
+                           aria-describedby="effectiveDivider" type="datetime-local"
+                           :value="convertLocalDateStringForInput(effectiveTo)"
+                           disabled/>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-2">
             <div class="col">
                 <div class="card">
                     <div class="row">
@@ -47,11 +63,10 @@
                                 <th scope="col">#</th>
                                 <th scope="col">Buchungsdatum</th>
                                 <th scope="col">Betrag</th>
-                                <th scope="col">19%</th>
-                                <th scope="col">7%</th>
                                 </thead>
                                 <tbody>
-                                <tr v-for="transaction in transactions.data">
+                                <tr :id="'row-' + transaction.id" @click="spawnTransactionModal(transaction.id)"
+                                    v-for="transaction in transactions.data">
                                     <th :class="{'positive-value': transaction.isPositive, 'negative-value': !transaction.isPositive}"
                                         scope="row">
                                         {{ transaction.id }}
@@ -59,31 +74,34 @@
                                     <td>{{ dateToString(transaction.effectiveTimestamp) }}</td>
                                     <td :class="{'positive-value': transaction.isPositive, 'negative-value': !transaction.isPositive}">
                                         {{
-                                            moneyToString(transaction.value)
+                                        moneyToString(transaction.value)
                                         }}
                                     </td>
-                                    <td>{{ moneyToString(transaction.vat19) }}</td>
-                                    <td>{{ moneyToString(transaction.vat7) }}</td>
                                 </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col">
-                            <p>{{ transactions.start + 1 }} - {{ transactions.start + transactions.count }}</p>
-                        </div>
-                        <div class="col">
-                            <button @click="prevPage" :disabled="transactions.start === 0" class="btn btn-primary">
-                                <i class="fa-solid fa-arrow-left"></i>
-                            </button>
-                        </div>
-                        <div class="col">
-                            <button @click="nextPage"
-                                    :disabled="transactions.start + transactions.count >= transactions.total"
-                                    class="btn btn-primary">
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
+                    <div class="row ms-1 justify-content-center">
+                        <div class="col col-sm-2">
+                            <div class="input-group mb-3">
+                                <button @click="prevPage" :disabled="transactions.start === 0" class="btn btn-primary">
+                                    <i class="fa-solid fa-arrow-left"></i>
+                                </button>
+                                <input id="tableStart" class="form-control"
+                                       :value="transactions.start + 1"
+                                       aria-describedby="startEndDivider" type="text" disabled/>
+                                <span class="input-group-text" id="startEndDivider">-</span>
+                                <input id="tableEnd" class="form-control"
+                                       :value="transactions.start + transactions.count"
+                                       aria-describedby="startEndDivider"
+                                       type="text" disabled/>
+                                <button @click="nextPage"
+                                        :disabled="transactions.start + transactions.count >= transactions.total"
+                                        class="btn btn-primary">
+                                    <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -99,7 +117,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form>
+                    <div>
                         <div class="mb-3">
                             <label for="group-value" class="form-label">Betrag</label>
                             <div id="group-value" class="input-group mb-3">
@@ -109,10 +127,19 @@
                             </div>
                         </div>
                         <div class="mb-3">
+                            <label for="depositCategory" class="form-label">Kategorie</label>
+                            <select id="depositCategory" class="form-control">
+                                <option v-for="category in categories" :value="category.name"
+                                        :selected="category.id === 1">
+                                    {{ category.name }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label for="depositDateTime" class="form-label">Buchungsdatum</label>
                             <input id="depositDateTime" class="form-control" type="datetime-local"/>
                         </div>
-                    </form>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="resetDepositValues()"
@@ -135,7 +162,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form>
+                    <div>
                         <div class="mb-3">
                             <label for="withdraw-group-value" class="form-label">Betrag</label>
                             <div id="withdraw-group-value" class="input-group mb-3">
@@ -167,10 +194,19 @@
                             </div>
                         </div>
                         <div class="mb-3">
+                            <label for="withdrawCategory" class="form-label">Kategorie</label>
+                            <select id="withdrawCategory" class="form-control">
+                                <option v-for="category in categories" :value="category.name"
+                                        :selected="category.id === 1">
+                                    {{ category.name }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label for="withdrawDateTime" class="form-label">Buchungsdatum</label>
                             <input id="withdrawDateTime" class="form-control" type="datetime-local"/>
                         </div>
-                    </form>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="resetWithdrawValues()"
@@ -179,6 +215,72 @@
                     </button>
                     <button type="button" class="btn btn-primary" @click="submitWithdrawal">
                         Buchen
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="transactionModalLabel">Transaktion</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div>
+                        <div class="mb-3">
+                            <label for="transactionId" class="form-label">ID</label>
+                            <input id="transactionId" class="form-control" type="text" :value="detailTransaction.id"
+                                   disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="transactionCategory" class="form-label">Kategorie</label>
+                            <input id="transactionCategory" class="form-control" type="text"
+                                   :value="detailTransaction.category" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="transactionInsertTimestamp" class="form-label">Erstelldatum</label>
+                            <input id="transactionInsertTimestamp" class="form-control" type="text"
+                                   :value="detailTransaction.insertTimestamp" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="transactionEffectiveTimestamp" class="form-label">Buchungsdatum</label>
+                            <input id="transactionEffectiveTimestamp" class="form-control" type="text"
+                                   :value="detailTransaction.effectiveTimestamp" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="transaction-group-value19" class="form-label">19% Anteil | 19% Steuern</label>
+                            <div id="transaction-group-value19" class="input-group mb-3">
+                                <span class="input-group-text" id="transactionValue19addon">EUR</span>
+                                <input id="transactionValue19" class="form-control"
+                                       aria-describedby="transactionValue19addon" type="text"
+                                       :value="amountToString(detailTransaction.value19)" disabled/>
+                                <span class="input-group-text" id="transactionVat19addon">EUR</span>
+                                <input id="transactionVat19" class="form-control"
+                                       aria-describedby="transactionVat19addon"
+                                       type="text" :value="amountToString(detailTransaction.vat19)" disabled/>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="transaction-group-value7" class="form-label">7% Anteil | 7% Steuern</label>
+                            <div id="transaction-group-value7" class="input-group mb-3">
+                                <span class="input-group-text" id="transactionValue7addon">EUR</span>
+                                <input id="transactionValue7" class="form-control"
+                                       aria-describedby="transactionValue7addon" type="text"
+                                       :value="amountToString(detailTransaction.value7)" disabled/>
+                                <span class="input-group-text" id="transactionVat7addon">EUR</span>
+                                <input id="transactionVat7" class="form-control" aria-describedby="transactionVat7addon"
+                                       type="text" :value="amountToString(detailTransaction.vat7)" disabled/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                        Ok cool
                     </button>
                 </div>
             </div>

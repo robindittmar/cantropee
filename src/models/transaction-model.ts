@@ -11,6 +11,7 @@ export interface TransactionModel extends RowDataPacket {
     effective_timestamp: Date;
     active: boolean;
     ref_id: number | undefined;
+    category_id: number;
     value: number;
     value19: number | undefined;
     value7: number | undefined;

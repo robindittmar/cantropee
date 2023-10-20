@@ -1,5 +1,6 @@
 const resetDepositValues = () => {
     document.querySelector('#depositValue').value = '0.00';
+    document.querySelector('#depositDateTime').value = makeLocalDateStringForInput();
 };
 
 const resetWithdrawValues = () => {
@@ -8,6 +9,7 @@ const resetWithdrawValues = () => {
     document.querySelector('#withdrawValue7').value = '0.00';
     document.querySelector('#withdrawVat19').value = '0.00';
     document.querySelector('#withdrawVat7').value = '0.00';
+    document.querySelector('#withdrawDateTime').value = makeLocalDateStringForInput();
 };
 
 (() => {
@@ -15,7 +17,10 @@ const resetWithdrawValues = () => {
 
     makeLocalDateStringForInput = () => {
         return new Date(Date.now() - TIMEZONE_OFFSET).toISOString().slice(0, 16);
-    }
+    };
+    convertLocalDateStringForInput = dt => {
+        return new Date(dt.getTime() - TIMEZONE_OFFSET).toISOString().slice(0, 16);
+    };
 
     window.onload = () => {
         const depositModal = document.querySelector('#depositModal');
@@ -69,12 +74,13 @@ const resetWithdrawValues = () => {
         });
     };
 
-    const {createApp} = Vue;
-
     const navigationStep = 10;
 
+    const {createApp} = Vue;
     createApp({
         data: () => ({
+            effectiveFrom: new Date(),
+            effectiveTo: new Date(),
             balance: {
                 total: {amount: 0, currency: 'EUR'},
                 isPositive: true,
@@ -84,6 +90,18 @@ const resetWithdrawValues = () => {
                     vat7: {amount: 0, currency: 'EUR'},
                 }
             },
+            categories: [],
+            detailTransaction: {
+                id: 0,
+                category: '',
+                insertTimestamp: new Date(0),
+                effectiveTimestamp: new Date(0),
+                value: {amount: 0, currency: 'EUR'},
+                value7: {amount: 0, currency: 'EUR'},
+                value19: {amount: 0, currency: 'EUR'},
+                vat7: {amount: 0, currency: 'EUR'},
+                vat19: {amount: 0, currency: 'EUR'},
+            },
             transactions: {
                 start: 0,
                 count: navigationStep,
@@ -92,18 +110,28 @@ const resetWithdrawValues = () => {
             },
         }),
         created() {
+            const now = new Date();
+            this.effectiveFrom = new Date(now.getFullYear(), now.getMonth());
+            this.effectiveTo = now;
+            // this.effectiveTo = new Date(now.getFullYear(), now.getMonth() + 1);
+            // this.effectiveFrom = new Date(0);
+
             this.fetchBalance();
             this.fetchTransactions();
+            this.fetchCategories();
         },
         methods: {
             async fetchBalance() {
-                const res = await fetch('/api/transactions/balance');
+                const res = await fetch(`/api/transactions/balance?from=${this.dateToURI(this.effectiveFrom)}&to=${this.dateToURI(this.effectiveTo)}`);
                 this.balance = await res.json();
                 this.balance.isPositive = this.balance.total.amount >= 0;
-                this.loading = false;
+            },
+            async fetchCategories() {
+                const res = await fetch('/api/categories');
+                this.categories = await res.json();
             },
             async fetchTransactions() {
-                const res = await fetch(`/api/transactions?start=${this.transactions.start}&count=${navigationStep}`);
+                const res = await fetch(`/api/transactions?from=${this.dateToURI(this.effectiveFrom)}&to=${this.dateToURI(this.effectiveTo)}&start=${this.transactions.start}&count=${navigationStep}`);
                 let paginatedResult = await res.json();
 
                 paginatedResult.data = paginatedResult.data.map(t => {
@@ -116,10 +144,12 @@ const resetWithdrawValues = () => {
             },
             async submitDeposit() {
                 const depositValue = document.querySelector('#depositValue');
+                const depositCategory = document.querySelector('#depositCategory');
                 const depositDateTime = document.querySelector('#depositDateTime');
 
                 const payload = {
                     effectiveTimestamp: new Date(depositDateTime.value),
+                    category: depositCategory.value,
                     value: depositValue.value * 100,
                     value19: 0,
                     value7: 0,
@@ -146,10 +176,12 @@ const resetWithdrawValues = () => {
                 const withdrawValue7 = document.querySelector('#withdrawValue7');
                 const withdrawVat19 = document.querySelector('#withdrawVat19');
                 const withdrawVat7 = document.querySelector('#withdrawVat7');
+                const withdrawCategory = document.querySelector('#withdrawCategory');
                 const withdrawDateTime = document.querySelector('#withdrawDateTime');
 
                 const payload = {
                     effectiveTimestamp: new Date(withdrawDateTime.value),
+                    category: withdrawCategory.value,
                     value: -(withdrawValue.value * 100),
                     value19: -(withdrawValue19.value * 100),
                     value7: -(withdrawValue7.value * 100),
@@ -170,6 +202,13 @@ const resetWithdrawValues = () => {
 
                 resetWithdrawValues();
             },
+            async spawnTransactionModal(transactionId) {
+                const res = await fetch(`/api/transactions/${transactionId}`);
+                this.detailTransaction = await res.json();
+
+                const transModal = new bootstrap.Modal(document.getElementById('transactionModal'));
+                transModal.show();
+            },
             async nextPage() {
                 this.transactions.start += navigationStep;
                 if (this.transactions.start >= this.transactions.total) {
@@ -189,6 +228,9 @@ const resetWithdrawValues = () => {
             moneyToString(m) {
                 return m.currency + ' ' + (m.amount / 100).toFixed(2);
             },
+            amountToString(m) {
+                return (m.amount / 100).toFixed(2);
+            },
             dateToString(d) {
                 const localeOptions = {
                     weekday: 'short',
@@ -199,7 +241,13 @@ const resetWithdrawValues = () => {
                     minute: '2-digit',
                 };
                 return d.toLocaleString('de-DE', localeOptions);
-            }
+            },
+            dateToURI(d) {
+                return encodeURI(d.toISOString());
+            },
+            convertLocalDateStringForInput(dt) {
+                return new Date(dt.getTime() - TIMEZONE_OFFSET).toISOString().slice(0, 16);
+            },
         }
     }).mount('#app');
 })();

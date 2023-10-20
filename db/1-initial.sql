@@ -7,12 +7,21 @@ create table sessions
     id               BIGINT auto_increment,
     insert_timestamp datetime default NOW() not null,
     valid_until      datetime               not null,
-    session_id       varchar(256)           not null,
+    session_id       varchar(1024)          not null,
     constraint sessions_pk
         primary key (id)
 );
 create index sessions_valid_until_index
     on sessions (valid_until);
+
+create table categories
+(
+    id               BIGINT auto_increment,
+    name             varchar(256)           not null,
+    insert_timestamp datetime default NOW() not null,
+    constraint transactions_categories_pk
+        primary key (id)
+);
 
 create table transactions
 (
@@ -21,6 +30,7 @@ create table transactions
     effective_timestamp datetime default NOW() not null,
     active              boolean  default true  not null,
     ref_id              BIGINT                 null,
+    category_id         BIGINT                 not null,
     value               BIGINT                 not null,
     value19             BIGINT                 null,
     value7              BIGINT                 null,
