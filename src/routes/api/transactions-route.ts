@@ -40,7 +40,7 @@ transactionsRouter.get('/', async (req, res) => {
     const offsetInt = parseInt(count);
     const effectiveFrom = new Date(from);
     let effectiveTo = new Date(to);
-    let reverseOrder = order === 'desc';
+    let reverseOrder = order === 'asc';
     const excludePending = pending === 'false';
 
     const now = new Date();
