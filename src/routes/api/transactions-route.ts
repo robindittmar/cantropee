@@ -72,11 +72,11 @@ transactionsRouter.post('/', async (req, res) => {
         insertTimestamp: new Date(),
         pending: undefined,
         effectiveTimestamp: new Date(transactionReq.effectiveTimestamp),
-        value: new Money(transactionReq.value, Currencies['EUR']!),
-        value19: new Money(transactionReq.value19, Currencies['EUR']!),
-        value7: new Money(transactionReq.value7, Currencies['EUR']!),
-        vat19: new Money(transactionReq.vat19, Currencies['EUR']!),
-        vat7: new Money(transactionReq.vat7, Currencies['EUR']!),
+        value: new Money(Math.round(transactionReq.value), Currencies['EUR']!),
+        value19: new Money(Math.round(transactionReq.value19), Currencies['EUR']!),
+        value7: new Money(Math.round(transactionReq.value7), Currencies['EUR']!),
+        vat19: new Money(Math.round(transactionReq.vat19), Currencies['EUR']!),
+        vat7: new Money(Math.round(transactionReq.vat7), Currencies['EUR']!),
     };
     let result = await insertTransaction(session.organizationId, transaction);
 
