@@ -5,4 +5,6 @@ export interface SessionModel extends RowDataPacket {
     insert_timestamp: Date;
     valid_until: Date;
     session_id: string;
+    user_id: string;
+    organization_id: string;
 }

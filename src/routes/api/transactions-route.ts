@@ -7,11 +7,14 @@ import {
     Transaction
 } from "../../services/transaction-service";
 import {Currencies, Money} from "ts-money";
+import {getSessionFromReq} from "../../services/login-service";
 
 export const transactionsRouter = express.Router();
 
 
 transactionsRouter.get('/', async (req, res) => {
+    const session = getSessionFromReq(req);
+
     let {
         from,
         to,
@@ -45,24 +48,25 @@ transactionsRouter.get('/', async (req, res) => {
         effectiveTo = new Date();
     }
 
-    let result = await getTransactions(effectiveFrom, effectiveTo, startInt, offsetInt);
+    let result = await getTransactions(session.organizationId, effectiveFrom, effectiveTo, startInt, offsetInt);
     res.send(result);
 });
 
-transactionsRouter.get('/:id(\\d+)', async (req, res) => {
-    let id = parseInt(req.params['id'] ?? '0');
-    if (id.toString() != req.params['id']) {
-        throw new Error('id must be a number');
-    }
+transactionsRouter.get('/:id(^[0-9a-fA-F]{8}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{12}$)', async (req, res) => {
+    const session = getSessionFromReq(req);
 
-    let result = await getTransaction(id);
+    let id = req.params['id'] ?? '0';
+    let result = await getTransaction(session.organizationId, id);
     res.send(result);
 });
 
 transactionsRouter.post('/', async (req, res) => {
+    const session = getSessionFromReq(req);
+
     let transactionReq = req.body;
     let transaction: Transaction = {
-        id: 0,
+        id: '',
+        rowIdx: 1,
         refId: transactionReq.refId,
         category: transactionReq.category,
         insertTimestamp: new Date(),
@@ -74,12 +78,14 @@ transactionsRouter.post('/', async (req, res) => {
         vat19: new Money(transactionReq.vat19, Currencies['EUR']!),
         vat7: new Money(transactionReq.vat7, Currencies['EUR']!),
     };
-    let result = await insertTransaction(transaction);
+    let result = await insertTransaction(session.organizationId, transaction);
 
     res.send(result);
 });
 
 transactionsRouter.get('/balance', async (req, res) => {
+    const session = getSessionFromReq(req);
+
     let {from, to} = req.query;
     if (typeof from !== 'string') {
         throw new Error('from must be provided in query');
@@ -91,6 +97,6 @@ transactionsRouter.get('/balance', async (req, res) => {
     const effectiveFrom = new Date(from);
     const effectiveTo = new Date(to);
 
-    let result = await getBalance(effectiveFrom, effectiveTo);
+    let result = await getBalance(session.organizationId, effectiveFrom, effectiveTo);
     res.send(result);
 });

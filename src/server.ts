@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import logger from 'morgan';
 import express, {Request, Response, NextFunction} from 'express';
 import cookieParser from "cookie-parser";
-import {requireLogin} from "./services/login-service";
+import {validateSession} from "./services/login-service";
 import {initDatabaseConnection} from "./core/database";
 import {loginRouter} from "./routes/login-route";
 import {transactionsRouter} from "./routes/api/transactions-route";
@@ -19,12 +19,12 @@ async function main() {
     const app = express();
     const port = parseInt(process.env['SERVER_PORT'] ?? '3000');
     const loggerFormat = process.env['NODE_ENV'] === 'production' ? 'short' : 'dev';
-    
+
     app.use(logger(loggerFormat));
     app.use(express.json());
     app.use(express.urlencoded({extended: true}));
     app.use(cookieParser());
-    app.use(requireLogin);
+    app.use(validateSession);
 
     app.use('/', express.static(path.join(__dirname, '../static')));
     app.use('/login', loginRouter);

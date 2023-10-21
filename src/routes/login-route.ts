@@ -9,6 +9,9 @@ loginRouter.get('/', async (_req, res) => {
 });
 
 loginRouter.post('/', async (req, res) => {
+    if (!('email' in req.body)) {
+        throw new Error('email must be provided for login');
+    }
     if (!('password' in req.body)) {
         throw new Error('password must be provided for login');
     }
@@ -18,7 +21,7 @@ loginRouter.post('/', async (req, res) => {
         redirectUri = req.query['redirect'];
     }
 
-    let {success, sessionId} = await login(req.body['password']);
+    let {success, sessionId} = await login(req.body['email'], req.body['password']);
     if (success) {
         res.cookie('sid', sessionId);
         res.redirect(redirectUri);

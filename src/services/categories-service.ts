@@ -8,41 +8,14 @@ export interface Category {
     name: string;
 }
 
-interface CategoryCache {
-    dirty: boolean,
-    data: Category[];
-    lookup: { [id: number]: string };
-    reverseLookup: { [id: string]: number };
-}
-
-const cache: CategoryCache = {
-    dirty: true,
-    data: [],
-    lookup: {},
-    reverseLookup: {},
-};
-
-function updateCache(data: Category[]) {
-    cache.data = data;
-
-    cache.lookup = {};
-    cache.data.forEach((c) => {
-        cache.lookup[c.id] = c.name;
-        cache.reverseLookup[c.name] = c.id;
-    });
-
-    cache.dirty = false;
-}
-
-export async function getCategories(): Promise<Category[]> {
-    if (!cache.dirty) {
-        return cache.data;
-    }
-
+export async function getCategories(organizationId: string): Promise<Category[]> {
     let categories: Category[] = [];
 
     const conn = await getConnection();
-    const [result] = await conn.query<CategoryModel[]>('SELECT * FROM `categories`');
+    const [result] = await conn.query<CategoryModel[]>(
+        'SELECT id, name FROM cantropee.categories WHERE organization_id = UUID_TO_BIN(?)',
+        [organizationId]
+    );
     conn.release();
 
     for (const category of result) {
@@ -52,55 +25,47 @@ export async function getCategories(): Promise<Category[]> {
         });
     }
 
-    updateCache(categories);
-    return cache.data;
+    return categories;
 }
 
-export async function getCategoriesLookup(): Promise<{ [id: number]: string }> {
-    if (cache.dirty) {
-        await getCategories();
-    }
+export async function getCategoriesLookup(organizationId: string): Promise<{ [id: number]: string }> {
+    const categories = await getCategories(organizationId);
+    let lookup: { [id: number]: string } = {};
+    categories.forEach(category => {
+        lookup[category.id] = category.name;
+    });
 
-    return cache.lookup;
+    return lookup;
 }
 
-export async function getCategoriesReverseLookup(): Promise<{ [id: string]: number }> {
-    if (cache.dirty) {
-        await getCategories();
-    }
+export async function getCategoriesReverseLookup(organizationId: string): Promise<{ [id: string]: number }> {
+    const categories = await getCategories(organizationId);
+    let lookup: { [id: string]: number } = {};
+    categories.forEach(category => {
+        lookup[category.name] = category.id;
+    });
 
-    return cache.reverseLookup;
+    return lookup;
 }
 
-export async function insertCategory(category: Category): Promise<boolean> {
+export async function insertCategory(organizationId: string, category: Category): Promise<boolean> {
     const conn = await getConnection();
     const [result] = await conn.query<ResultSetHeader>(
-        'INSERT INTO `categories` (name) VALUES (?)', [category.name]
+        'INSERT INTO cantropee.categories (organization_id, name) VALUES (UUID_TO_BIN(?),?)',
+        [organizationId, category.name]
     );
     conn.release();
 
-    const success = result.affectedRows > 0;
-    if (success) {
-        cache.dirty = true;
-    }
-
-    return success;
+    return result.affectedRows > 0;
 }
 
 export async function updateCategory(category: Category): Promise<boolean> {
     const conn = await getConnection();
     const [result] = await conn.query<ResultSetHeader>(
-        'UPDATE `categories`' +
-        ' SET name = ?' +
-        ' WHERE id = ?',
+        'UPDATE cantropee.categories SET name = ? WHERE id = ?',
         [category.name, category.id]
     );
     conn.release();
 
-    const success = result.affectedRows > 0;
-    if (success) {
-        cache.dirty = true;
-    }
-
-    return success;
+    return result.affectedRows > 0;
 }

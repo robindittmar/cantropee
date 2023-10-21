@@ -7,7 +7,8 @@ import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-serv
 
 
 export interface Transaction {
-    id: number;
+    id: string;
+    rowIdx: number;
     refId: number | undefined;
     category: string;
     insertTimestamp: Date;
@@ -44,15 +45,19 @@ export interface Balance {
     }
 }
 
-async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date()): Promise<BalanceModel> {
+async function recalculateBalance(organizationId: string, startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date()): Promise<BalanceModel> {
     const conn = await getConnection();
     const [rows] = await conn.query<TransactionModel[]>(
-        'SELECT * FROM `transactions`' +
-        ' WHERE `active` = true' +
-        ' AND `effective_timestamp` >= ?' +
-        ' AND `effective_timestamp` < ?' +
-        ' ORDER BY `effective_timestamp` ASC, `id` ASC',
-        [startingFrom, endingAt]
+        'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id,' +
+        '       insert_timestamp, effective_timestamp, active, ref_id,' +
+        '       category_id, value, value19, value7, vat19, vat7' +
+        ' FROM cantropee.transactions' +
+        ' WHERE organization_id = UUID_TO_BIN(?)' +
+        ' AND active = true' +
+        ' AND effective_timestamp >= ?' +
+        ' AND effective_timestamp < ?' +
+        ' ORDER BY effective_timestamp ASC',
+        [organizationId, startingFrom, endingAt]
     );
 
     const now = new Date();
@@ -90,10 +95,11 @@ async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), end
 
     validUntil = earliestPendingTransaction ?? validUntil;
     const [res] = await conn.execute<ResultSetHeader>(
-        'INSERT INTO `balance`' +
-        ' (effective_from, effective_to, valid_until, value, vat19, vat7, pending_value, pending_vat19, pending_vat7)' +
-        ' VALUES (?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO cantropee.balance' +
+        ' (organization_id, effective_from, effective_to, valid_until, value, vat19, vat7, pending_value, pending_vat19, pending_vat7)' +
+        ' VALUES (UUID_TO_BIN(?),?,?,?,?,?,?,?,?,?)',
         [
+            organizationId,
             startingFrom,
             endingAt,
             validUntil,
@@ -114,6 +120,7 @@ async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), end
     return {
         constructor: {name: "RowDataPacket"},
         id: res.insertId,
+        organization_id: organizationId,
         insert_timestamp: new Date(),
         effective_from: startingFrom,
         effective_to: endingAt,
@@ -128,22 +135,26 @@ async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), end
     };
 }
 
-export async function getBalance(effectiveFrom: Date, effectiveTo: Date): Promise<Balance> {
+export async function getBalance(organizationId: string, effectiveFrom: Date, effectiveTo: Date): Promise<Balance> {
     const conn = await getConnection();
     let [rows] = await conn.query<BalanceModel[]>(
-        'SELECT * FROM `balance`' +
-        ' WHERE dirty = false' +
+        'SELECT id, BIN_TO_UUID(organization_id) AS organization_id, insert_timestamp,' +
+        '       effective_from, effective_to, value, vat19, vat7, pending_value,' +
+        '       pending_vat19, pending_vat7, valid_until, dirty' +
+        ' FROM cantropee.balance' +
+        ' WHERE organization_id = UUID_TO_BIN(?)' +
+        ' AND dirty = false' +
         ' AND valid_until > NOW()' +
         ' AND effective_from = ?' +
         ' AND effective_to = ?' +
-        ' ORDER BY `id` DESC' +
+        ' ORDER BY id DESC' +
         ' LIMIT 1',
-        [effectiveFrom, effectiveTo]
+        [organizationId, effectiveFrom, effectiveTo]
     );
     conn.release();
 
     if (rows.length < 1) {
-        rows = [await recalculateBalance(effectiveFrom, effectiveTo)];
+        rows = [await recalculateBalance(organizationId, effectiveFrom, effectiveTo)];
     }
 
     let total = new Money(rows[0]?.value ?? 0, Currencies['EUR']!);
@@ -174,12 +185,17 @@ export async function getBalance(effectiveFrom: Date, effectiveTo: Date): Promis
     };
 }
 
-export async function getTransaction(id: number): Promise<Transaction> {
-    const categoriesLookup = await getCategoriesLookup();
+export async function getTransaction(organizationId: string, id: string): Promise<Transaction> {
+    const categoriesLookup = await getCategoriesLookup(organizationId);
 
     const conn = await getConnection();
     const [result] = await conn.query<TransactionModel[]>(
-        'SELECT * FROM `transactions` WHERE `id` = ?', [id]
+        'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id, insert_timestamp,' +
+        '       effective_timestamp, active, ref_id, category_id, value, value19, value7,' +
+        '       vat19, vat7' +
+        ' FROM cantropee.transactions' +
+        ' WHERE id = ?',
+        [id]
     );
     conn.release();
 
@@ -193,6 +209,7 @@ export async function getTransaction(id: number): Promise<Transaction> {
     return {
         id: t.id,
         refId: t.ref_id,
+        rowIdx: 1,
         category: categoriesLookup[t.category_id] ?? '[ERROR]',
         insertTimestamp: t.insert_timestamp,
         pending: t.effective_timestamp > new Date(),
@@ -205,7 +222,7 @@ export async function getTransaction(id: number): Promise<Transaction> {
     };
 }
 
-export async function getTransactions(effectiveFrom: Date, effectiveTo: Date, start: number, count: number): Promise<PaginatedTransactions> {
+export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number): Promise<PaginatedTransactions> {
     let result: PaginatedTransactions = {
         total: 0,
         start: start,
@@ -213,27 +230,32 @@ export async function getTransactions(effectiveFrom: Date, effectiveTo: Date, st
         data: []
     };
 
-    const categoriesLookup = await getCategoriesLookup();
+    const categoriesLookup = await getCategoriesLookup(organizationId);
 
     const conn = await getConnection();
     const [res] = await conn.query<CountAllResult[]>(
-        'SELECT COUNT(*) AS count FROM `transactions`' +
-        ' WHERE `active` = true' +
-        ' AND `effective_timestamp` >= ?' +
-        ' AND `effective_timestamp` < ?',
-        [effectiveFrom, effectiveTo]
+        'SELECT COUNT(*) AS count FROM cantropee.transactions' +
+        ' WHERE organization_id = UUID_TO_BIN(?)' +
+        ' AND active = true' +
+        ' AND effective_timestamp >= ?' +
+        ' AND effective_timestamp < ?',
+        [organizationId, effectiveFrom, effectiveTo]
     );
     result.total = res[0]?.count ?? -1;
 
 
     const [rows] = await conn.query<TransactionModel[]>(
-        'SELECT * FROM `transactions`' +
-        ' WHERE `active` = true' +
-        ' AND `effective_timestamp` >= ?' +
-        ' AND `effective_timestamp` < ?' +
-        ' ORDER BY `effective_timestamp` DESC, `id` DESC' +
+        'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id,' +
+        '       insert_timestamp, effective_timestamp, active, ref_id, category_id, value,' +
+        '       value19, value7, vat19, vat7' +
+        ' FROM cantropee.transactions' +
+        ' WHERE organization_id = UUID_TO_BIN(?)' +
+        ' AND active = true' +
+        ' AND effective_timestamp >= ?' +
+        ' AND effective_timestamp < ?' +
+        ' ORDER BY effective_timestamp DESC' +
         ' LIMIT ?,?',
-        [effectiveFrom, effectiveTo, start, count]
+        [organizationId, effectiveFrom, effectiveTo, start, count]
     );
     conn.release();
 
@@ -241,6 +263,7 @@ export async function getTransactions(effectiveFrom: Date, effectiveTo: Date, st
     for (let row of rows) {
         result.data.push({
             id: row.id,
+            rowIdx: start + result.count + 1,
             refId: row.ref_id,
             category: categoriesLookup[row.category_id] ?? '[ERROR]',
             insertTimestamp: row.insert_timestamp,
@@ -258,8 +281,8 @@ export async function getTransactions(effectiveFrom: Date, effectiveTo: Date, st
     return result;
 }
 
-export async function insertTransaction(t: Transaction) {
-    const categoriesReverseLookup = await getCategoriesReverseLookup();
+export async function insertTransaction(organizationId: string, t: Transaction) {
+    const categoriesReverseLookup = await getCategoriesReverseLookup(organizationId);
     if (!(t.category in categoriesReverseLookup)) {
         throw new Error(`Invalid category ${t.category}`);
     }
@@ -267,10 +290,11 @@ export async function insertTransaction(t: Transaction) {
 
     const conn = await getConnection();
     const [res] = await conn.query<ResultSetHeader>(
-        'INSERT INTO `transactions`' +
-        ' (effective_timestamp, ref_id, category_id, value, value19, value7, vat19, vat7)' +
-        ' VALUES (?,?,?,?,?,?,?,?)',
+        'INSERT INTO cantropee.transactions' +
+        ' (organization_id, effective_timestamp, ref_id, category_id, value, value19, value7, vat19, vat7)' +
+        ' VALUES (UUID_TO_BIN(?),?,?,?,?,?,?,?,?)',
         [
+            organizationId,
             t.effectiveTimestamp.toISOString().slice(0, 19).replace('T', ' '),
             t.refId,
             categoryId,
@@ -283,12 +307,13 @@ export async function insertTransaction(t: Transaction) {
     );
 
     const [update] = await conn.execute<ResultSetHeader>(
-        'UPDATE `balance`' +
-        ' SET `dirty` = true' +
-        ' WHERE `dirty` = false' +
-        ' AND `effective_from` <= ?' +
-        ' AND `effective_to` > ?',
-        [t.effectiveTimestamp, t.effectiveTimestamp]
+        'UPDATE cantropee.balance' +
+        ' SET dirty = true' +
+        ' WHERE organization_id = UUID_TO_BIN(?)' +
+        ' AND dirty = false' +
+        ' AND effective_from <= ?' +
+        ' AND effective_to > ?',
+        [organizationId, t.effectiveTimestamp, t.effectiveTimestamp]
     );
     conn.release();
 

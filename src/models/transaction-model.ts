@@ -1,12 +1,12 @@
 import {RowDataPacket} from 'mysql2/promise';
 
-
 export interface CountAllResult extends RowDataPacket {
     count: number;
 }
 
 export interface TransactionModel extends RowDataPacket {
-    id: number;
+    id: string;
+    organization_id: string;
     insert_timestamp: Date;
     effective_timestamp: Date;
     active: boolean;
