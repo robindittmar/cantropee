@@ -5,7 +5,7 @@ export const loginRouter = express.Router();
 
 
 loginRouter.get('/', async (_req, res) => {
-    res.render('login', {title: 'cantropee'});
+    res.sendFile('views/login.html', {root: process.cwd()});
 });
 
 loginRouter.post('/', async (req, res) => {

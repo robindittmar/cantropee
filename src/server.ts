@@ -19,10 +19,7 @@ async function main() {
     const app = express();
     const port = parseInt(process.env['SERVER_PORT'] ?? '3000');
     const loggerFormat = process.env['NODE_ENV'] === 'production' ? 'short' : 'dev';
-
-    app.set('view engine', 'ejs');
-    app.set('views', path.join(__dirname, '../views'));
-
+    
     app.use(logger(loggerFormat));
     app.use(express.json());
     app.use(express.urlencoded({extended: true}));
