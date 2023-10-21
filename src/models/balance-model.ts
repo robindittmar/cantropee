@@ -13,5 +13,9 @@ export interface BalanceModel extends RowDataPacket {
     value: number;
     vat19: number;
     vat7: number;
+    pending_value: number;
+    pending_vat19: number;
+    pending_vat7: number;
+    valid_until: Date;
     dirty: boolean;
 }

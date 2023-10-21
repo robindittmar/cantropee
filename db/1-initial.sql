@@ -53,6 +53,10 @@ create table balance
     value            BIGINT                 not null,
     vat19            BIGINT                 not null,
     vat7             BIGINT                 not null,
+    pending_value    BIGINT                 not null,
+    pending_vat19    BIGINT                 not null,
+    pending_vat7     BIGINT                 not null,
+    valid_until      datetime               not null,
     dirty            boolean  default false not null,
     constraint transactions_pk
         primary key (id)

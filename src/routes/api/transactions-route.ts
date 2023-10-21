@@ -12,7 +12,13 @@ export const transactionsRouter = express.Router();
 
 
 transactionsRouter.get('/', async (req, res) => {
-    let {from, to, start, count} = req.query;
+    let {
+        from,
+        to,
+        start,
+        count,
+        pending,
+    } = req.query;
     if (typeof from !== 'string') {
         throw new Error('from must be provided in query');
     }
@@ -29,7 +35,15 @@ transactionsRouter.get('/', async (req, res) => {
     const startInt = parseInt(start);
     const offsetInt = parseInt(count);
     const effectiveFrom = new Date(from);
-    const effectiveTo = new Date(to);
+    let effectiveTo = new Date(to);
+    const excludePending = pending === 'false';
+
+    const now = new Date();
+    if (excludePending
+        && now >= effectiveFrom
+        && now < effectiveTo) {
+        effectiveTo = new Date();
+    }
 
     let result = await getTransactions(effectiveFrom, effectiveTo, startInt, offsetInt);
     res.send(result);
@@ -52,6 +66,7 @@ transactionsRouter.post('/', async (req, res) => {
         refId: transactionReq.refId,
         category: transactionReq.category,
         insertTimestamp: new Date(),
+        pending: undefined,
         effectiveTimestamp: new Date(transactionReq.effectiveTimestamp),
         value: new Money(transactionReq.value, Currencies['EUR']!),
         value19: new Money(transactionReq.value19, Currencies['EUR']!),

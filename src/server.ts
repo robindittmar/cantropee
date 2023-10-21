@@ -1,11 +1,10 @@
 import path from "path";
 import dotenv from 'dotenv';
 import logger from 'morgan';
-import express from 'express';
+import express, {Request, Response, NextFunction} from 'express';
 import cookieParser from "cookie-parser";
 import {requireLogin} from "./services/login-service";
 import {initDatabaseConnection} from "./core/database";
-import {indexRouter} from "./routes/index-route";
 import {loginRouter} from "./routes/login-route";
 import {transactionsRouter} from "./routes/api/transactions-route";
 import {categoriesRouter} from "./routes/api/categories-route";
@@ -30,13 +29,15 @@ async function main() {
     app.use(cookieParser());
     app.use(requireLogin);
 
-    app.use('/public', express.static(path.join(__dirname, '../static/public')));
-    app.use('/secure', express.static(path.join(__dirname, '../static/secure')));
-
-    app.use('/', indexRouter);
+    app.use('/', express.static(path.join(__dirname, '../static')));
     app.use('/login', loginRouter);
     app.use('/api/categories', categoriesRouter);
     app.use('/api/transactions', transactionsRouter);
+
+    app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+        console.error(err);
+        res.status(500).send({err});
+    });
 
     app.listen(port, () => {
         console.log(`$ server listening on http://localhost:${port}`);

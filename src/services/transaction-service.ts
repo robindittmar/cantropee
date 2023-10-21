@@ -11,6 +11,7 @@ export interface Transaction {
     refId: number | undefined;
     category: string;
     insertTimestamp: Date;
+    pending: boolean | undefined;
     effectiveTimestamp: Date;
     value: Money;
     value7: Money;
@@ -33,6 +34,14 @@ export interface Balance {
         vat19: Money;
         vat7: Money;
     }
+    pending: {
+        total: Money;
+        vat: {
+            total: Money;
+            vat19: Money;
+            vat7: Money;
+        }
+    }
 }
 
 async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date()): Promise<BalanceModel> {
@@ -46,24 +55,55 @@ async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), end
         [startingFrom, endingAt]
     );
 
+    const now = new Date();
+    let validUntil = new Date();
+    validUntil.setHours(validUntil.getHours() + 24);
+
+    let earliestPendingTransaction: Date | undefined = undefined;
+
     let total = new Money(0, Currencies['EUR']!);
     let totalVat19 = new Money(0, Currencies['EUR']!);
     let totalVat7 = new Money(0, Currencies['EUR']!);
+
+    let pending = new Money(0, Currencies['EUR']!);
+    let pendingVat19 = new Money(0, Currencies['EUR']!);
+    let pendingVat7 = new Money(0, Currencies['EUR']!);
     for (let row of rows) {
         const value = new Money(row.value, Currencies['EUR']!);
         const vat19 = new Money(row.vat19 ?? 0, Currencies['EUR']!)
         const vat7 = new Money(row.vat7 ?? 0, Currencies['EUR']!);
 
-        total = total.add(value);
-        totalVat19 = totalVat19.add(vat19);
-        totalVat7 = totalVat7.add(vat7);
+        if (row.effective_timestamp < now) {
+            total = total.add(value);
+            totalVat19 = totalVat19.add(vat19);
+            totalVat7 = totalVat7.add(vat7);
+        } else {
+            if (earliestPendingTransaction === undefined) {
+                earliestPendingTransaction = new Date(row.effective_timestamp);
+            }
+
+            pending = pending.add(value);
+            pendingVat19 = pendingVat19.add(vat19);
+            pendingVat7 = pendingVat7.add(vat7);
+        }
     }
 
+    validUntil = earliestPendingTransaction ?? validUntil;
     const [res] = await conn.execute<ResultSetHeader>(
         'INSERT INTO `balance`' +
-        ' (effective_from, effective_to, value, vat19, vat7)' +
-        ' VALUES (?,?,?,?,?)',
-        [startingFrom, endingAt, total.amount, totalVat19.amount, totalVat7.amount]
+        ' (effective_from, effective_to, valid_until, value, vat19, vat7, pending_value, pending_vat19, pending_vat7)' +
+        ' VALUES (?,?,?,?,?,?,?,?,?)',
+        [
+            startingFrom,
+            endingAt,
+            validUntil,
+            total.amount,
+            totalVat19.amount,
+            totalVat7.amount,
+            pending.amount,
+            pendingVat19.amount,
+            pendingVat7.amount,
+        ]
     );
     conn.release();
 
@@ -80,6 +120,10 @@ async function recalculateBalance(startingFrom: Date = new Date(1970, 1, 1), end
         value: total.amount,
         vat19: totalVat19.amount,
         vat7: totalVat7.amount,
+        pending_value: pending.amount,
+        pending_vat19: pendingVat19.amount,
+        pending_vat7: pendingVat7.amount,
+        valid_until: validUntil,
         dirty: false
     };
 }
@@ -89,6 +133,7 @@ export async function getBalance(effectiveFrom: Date, effectiveTo: Date): Promis
     let [rows] = await conn.query<BalanceModel[]>(
         'SELECT * FROM `balance`' +
         ' WHERE dirty = false' +
+        ' AND valid_until > NOW()' +
         ' AND effective_from = ?' +
         ' AND effective_to = ?' +
         ' ORDER BY `id` DESC' +
@@ -106,13 +151,26 @@ export async function getBalance(effectiveFrom: Date, effectiveTo: Date): Promis
     let vat7 = new Money(rows[0]?.vat7 ?? 0, Currencies['EUR']!);
     let vatTotal = vat19.add(vat7);
 
+    let pendingTotal = new Money(rows[0]?.pending_value ?? 0, Currencies['EUR']!);
+    let pendingVat19 = new Money(rows[0]?.pending_vat19 ?? 0, Currencies['EUR']!);
+    let pendingVat7 = new Money(rows[0]?.pending_vat7 ?? 0, Currencies['EUR']!);
+    let pendingVatTotal = pendingVat19.add(pendingVat7);
+
     return {
-        total,
+        total: total,
         vat: {
             total: vatTotal,
-            vat19,
-            vat7,
-        }
+            vat19: vat19,
+            vat7: vat7,
+        },
+        pending: {
+            total: pendingTotal,
+            vat: {
+                total: pendingVatTotal,
+                vat19: pendingVat19,
+                vat7: pendingVat7,
+            }
+        },
     };
 }
 
@@ -137,6 +195,7 @@ export async function getTransaction(id: number): Promise<Transaction> {
         refId: t.ref_id,
         category: categoriesLookup[t.category_id] ?? '[ERROR]',
         insertTimestamp: t.insert_timestamp,
+        pending: t.effective_timestamp > new Date(),
         effectiveTimestamp: t.effective_timestamp,
         value: new Money(t.value, Currencies['EUR']!),
         value7: new Money(t.value7 ?? 0, Currencies['EUR']!),
@@ -178,12 +237,14 @@ export async function getTransactions(effectiveFrom: Date, effectiveTo: Date, st
     );
     conn.release();
 
+    const now = new Date();
     for (let row of rows) {
         result.data.push({
             id: row.id,
             refId: row.ref_id,
             category: categoriesLookup[row.category_id] ?? '[ERROR]',
             insertTimestamp: row.insert_timestamp,
+            pending: row.effective_timestamp > now,
             effectiveTimestamp: row.effective_timestamp,
             value: new Money(row.value, Currencies['EUR']!),
             value7: new Money(row.value7 ?? 0, Currencies['EUR']!),
