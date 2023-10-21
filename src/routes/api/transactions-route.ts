@@ -20,6 +20,7 @@ transactionsRouter.get('/', async (req, res) => {
         to,
         start,
         count,
+        order,
         pending,
     } = req.query;
     if (typeof from !== 'string') {
@@ -39,6 +40,7 @@ transactionsRouter.get('/', async (req, res) => {
     const offsetInt = parseInt(count);
     const effectiveFrom = new Date(from);
     let effectiveTo = new Date(to);
+    let reverseOrder = order === 'desc';
     const excludePending = pending === 'false';
 
     const now = new Date();
@@ -48,7 +50,14 @@ transactionsRouter.get('/', async (req, res) => {
         effectiveTo = new Date();
     }
 
-    let result = await getTransactions(session.organizationId, effectiveFrom, effectiveTo, startInt, offsetInt);
+    let result = await getTransactions(
+        session.organizationId,
+        effectiveFrom,
+        effectiveTo,
+        startInt,
+        offsetInt,
+        reverseOrder
+    );
     res.send(result);
 });
 

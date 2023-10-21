@@ -222,7 +222,7 @@ export async function getTransaction(organizationId: string, id: string): Promis
     };
 }
 
-export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number): Promise<PaginatedTransactions> {
+export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number, reverse: boolean): Promise<PaginatedTransactions> {
     let result: PaginatedTransactions = {
         total: 0,
         start: start,
@@ -243,7 +243,7 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
     );
     result.total = res[0]?.count ?? -1;
 
-
+    const sortDirection = reverse ? 'ASC' : 'DESC';
     const [rows] = await conn.query<TransactionModel[]>(
         'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id,' +
         '       insert_timestamp, effective_timestamp, active, ref_id, category_id, value,' +
@@ -253,7 +253,7 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
         ' AND active = true' +
         ' AND effective_timestamp >= ?' +
         ' AND effective_timestamp < ?' +
-        ' ORDER BY effective_timestamp DESC' +
+        ' ORDER BY effective_timestamp ' + sortDirection +
         ' LIMIT ?,?',
         [organizationId, effectiveFrom, effectiveTo, start, count]
     );
@@ -263,7 +263,7 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
     for (let row of rows) {
         result.data.push({
             id: row.id,
-            rowIdx: start + result.count + 1,
+            rowIdx: reverse ? (start + 1 + result.count) : (result.total - result.count),
             refId: row.ref_id,
             category: categoriesLookup[row.category_id] ?? '[ERROR]',
             insertTimestamp: row.insert_timestamp,
