@@ -1,7 +1,7 @@
 use cantropee;
 
-INSERT INTO cantropee.organizations (id, name)
-VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), 'cantropee');
+INSERT INTO cantropee.organizations (id, name, currency)
+VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), 'cantropee', 'EUR');
 
 INSERT INTO cantropee.users (id, email, password)
 VALUES (UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'), 'affe@dittmar.dev',
