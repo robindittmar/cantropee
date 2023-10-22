@@ -284,9 +284,13 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
 export async function insertTransaction(organizationId: string, t: Transaction) {
     const categoriesReverseLookup = await getCategoriesReverseLookup(organizationId);
     if (!(t.category in categoriesReverseLookup)) {
-        throw new Error(`Invalid category ${t.category}`);
+        throw new Error(`Invalid category '${t.category}'`);
     }
     const categoryId = categoriesReverseLookup[t.category];
+
+    if (t.value.amount === 0) {
+        throw new Error('Invalid amount for transaction: 0');
+    }
 
     const conn = await getConnection();
     const [res] = await conn.query<ResultSetHeader>(
