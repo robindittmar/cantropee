@@ -263,7 +263,7 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
     for (let row of rows) {
         result.data.push({
             id: row.id,
-            rowIdx: reverse ? (start + 1 + result.count) : (result.total - result.count),
+            rowIdx: reverse ? (start + 1 + result.count) : (result.total - result.count - start),
             refId: row.ref_id,
             category: categoriesLookup[row.category_id] ?? '[ERROR]',
             insertTimestamp: row.insert_timestamp,
