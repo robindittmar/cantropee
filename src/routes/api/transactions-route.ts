@@ -88,6 +88,14 @@ transactionsRouter.post('/', async (req, res) => {
         vat7: new Money(Math.round(transactionReq.vat7), Currencies['EUR']!),
         note: transactionReq.note,
     };
+
+    if (transaction.note && transaction.note.length > 128) {
+        // TODO: Logging & error handling :)
+        console.error('note too long!');
+        res.status(400);
+        res.send({success: false});
+    }
+
     let result = await insertTransaction(session.organizationId, transaction);
 
     res.send(result);
