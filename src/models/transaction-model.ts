@@ -17,4 +17,5 @@ export interface TransactionModel extends RowDataPacket {
     value7: number | undefined;
     vat19: number | undefined;
     vat7: number | undefined;
+    note: string | undefined;
 }

@@ -4,4 +4,5 @@ export interface OrganizationModel extends RowDataPacket {
     id: string;
     name: string;
     insert_timestamp: Date;
+    currency: string;
 }

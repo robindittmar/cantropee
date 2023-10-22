@@ -7,6 +7,7 @@ create table organizations
     id               binary(16) default (UUID_TO_BIN(UUID())) not null,
     insert_timestamp datetime   default NOW()                 not null,
     name             varchar(256)                             not null,
+    currency         varchar(16)                              not null,
 
     constraint organizations_pk
         primary key (id)
@@ -77,6 +78,7 @@ create table transactions
     value7              BIGINT                                   null,
     vat19               BIGINT                                   null,
     vat7                BIGINT                                   null,
+    note                varchar(128)                             null,
 
     constraint transactions_pk
         primary key (id)

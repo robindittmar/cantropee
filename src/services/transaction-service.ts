@@ -19,6 +19,7 @@ export interface Transaction {
     value19: Money;
     vat7: Money;
     vat19: Money;
+    note: string | undefined;
 }
 
 export interface PaginatedTransactions {
@@ -50,7 +51,7 @@ async function recalculateBalance(organizationId: string, startingFrom: Date = n
     const [rows] = await conn.query<TransactionModel[]>(
         'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id,' +
         '       insert_timestamp, effective_timestamp, active, ref_id,' +
-        '       category_id, value, value19, value7, vat19, vat7' +
+        '       category_id, value, value19, value7, vat19, vat7, note' +
         ' FROM cantropee.transactions' +
         ' WHERE organization_id = UUID_TO_BIN(?)' +
         ' AND active = true' +
@@ -192,7 +193,7 @@ export async function getTransaction(organizationId: string, id: string): Promis
     const [result] = await conn.query<TransactionModel[]>(
         'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id, insert_timestamp,' +
         '       effective_timestamp, active, ref_id, category_id, value, value19, value7,' +
-        '       vat19, vat7' +
+        '       vat19, vat7, note' +
         ' FROM cantropee.transactions' +
         ' WHERE id = ?',
         [id]
@@ -219,6 +220,7 @@ export async function getTransaction(organizationId: string, id: string): Promis
         value19: new Money(t.value19 ?? 0, Currencies['EUR']!),
         vat7: new Money(t.vat7 ?? 0, Currencies['EUR']!),
         vat19: new Money(t.vat19 ?? 0, Currencies['EUR']!),
+        note: t.note,
     };
 }
 
@@ -247,7 +249,7 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
     const [rows] = await conn.query<TransactionModel[]>(
         'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id,' +
         '       insert_timestamp, effective_timestamp, active, ref_id, category_id, value,' +
-        '       value19, value7, vat19, vat7' +
+        '       value19, value7, vat19, vat7, note' +
         ' FROM cantropee.transactions' +
         ' WHERE organization_id = UUID_TO_BIN(?)' +
         ' AND active = true' +
@@ -274,6 +276,7 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
             value19: new Money(row.value19 ?? 0, Currencies['EUR']!),
             vat7: new Money(row.vat7 ?? 0, Currencies['EUR']!),
             vat19: new Money(row.vat19 ?? 0, Currencies['EUR']!),
+            note: row.note,
         });
         result.count += 1;
     }
@@ -295,8 +298,8 @@ export async function insertTransaction(organizationId: string, t: Transaction) 
     const conn = await getConnection();
     const [res] = await conn.query<ResultSetHeader>(
         'INSERT INTO cantropee.transactions' +
-        ' (organization_id, effective_timestamp, ref_id, category_id, value, value19, value7, vat19, vat7)' +
-        ' VALUES (UUID_TO_BIN(?),?,?,?,?,?,?,?,?)',
+        ' (organization_id, effective_timestamp, ref_id, category_id, value, value19, value7, vat19, vat7, note)' +
+        ' VALUES (UUID_TO_BIN(?),?,?,?,?,?,?,?,?,?)',
         [
             organizationId,
             t.effectiveTimestamp.toISOString().slice(0, 19).replace('T', ' '),
@@ -307,6 +310,7 @@ export async function insertTransaction(organizationId: string, t: Transaction) 
             t.value7.amount,
             t.vat19.amount,
             t.vat7.amount,
+            t.note
         ]
     );
 

@@ -86,6 +86,7 @@ transactionsRouter.post('/', async (req, res) => {
         value7: new Money(Math.round(transactionReq.value7), Currencies['EUR']!),
         vat19: new Money(Math.round(transactionReq.vat19), Currencies['EUR']!),
         vat7: new Money(Math.round(transactionReq.vat7), Currencies['EUR']!),
+        note: transactionReq.note,
     };
     let result = await insertTransaction(session.organizationId, transaction);
 
