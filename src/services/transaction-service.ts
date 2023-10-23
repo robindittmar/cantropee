@@ -132,7 +132,7 @@ async function recalculateBalance(organizationId: string, startingFrom: Date = n
         pending_vat19: pendingVat19.amount,
         pending_vat7: pendingVat7.amount,
         valid_until: validUntil,
-        dirty: false
+        dirty: 0
     };
 }
 
@@ -299,6 +299,7 @@ export async function getAllTransactions(organizationId: string): Promise<Transa
     );
     conn.release();
 
+    // TODO: We need to carry 'active' flag etc :D (MAYBE we should actually full on dump the model)
     let count = 1;
     for (const row of rows) {
         transactions.push({

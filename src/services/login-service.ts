@@ -41,7 +41,6 @@ export const validateSession = async (req: Request, res: Response, next: NextFun
 };
 
 
-
 export async function login(email: string, password: string): Promise<{ success: boolean, sessionId: string }> {
     // set password: const passwordHash = await bcrypt.hash(password, 4);
 
@@ -56,7 +55,7 @@ export async function login(email: string, password: string): Promise<{ success:
                 sessionId: randomUUID() + randomUUID() + randomUUID() + randomUUID(),
                 validUntil,
                 user,
-                organizationId: user.default_organization ?? user.organizations[0] ?? ''
+                organizationId: user.settings.defaultOrganization ?? user.organizations[0] ?? ''
             };
             if (await insertSession(session)) {
                 return {

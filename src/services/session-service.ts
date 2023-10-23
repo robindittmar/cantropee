@@ -104,6 +104,10 @@ export async function updateSession(session: Session): Promise<boolean> {
     return success;
 }
 
+export async function updateSessionCache(session: Session) {
+    sessionCache[session.sessionId] = session;
+}
+
 export async function revalidateSession(session: Session): Promise<boolean> {
     const conn = await getConnection();
     const [updateSessionResult] = await conn.execute<ResultSetHeader>(
