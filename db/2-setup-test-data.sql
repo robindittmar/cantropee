@@ -6,6 +6,9 @@ VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), 'cantropee', 'EUR')
 INSERT INTO cantropee.users (id, email, password)
 VALUES (UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'), 'affe@dittmar.dev',
         '$2b$04$PuzS/bnPZNWjlqqLQ4kPeuNU/I/leh.zm9/GB2kHMX0aWuOVMjF4e');
+INSERT INTO cantropee.user_settings (user_id, default_organization)
+VALUES (UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'), UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'));
+
 
 INSERT INTO cantropee.organization_users (organization_id, user_id, role)
 VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'),

@@ -15,11 +15,10 @@ create table organizations
 
 create table users
 (
-    id                   binary(16) default (UUID_TO_BIN(UUID())) not null,
-    insert_timestamp     datetime   default NOW()                 not null,
-    email                varchar(256)                             not null,
-    password             varchar(256)                             not null,
-    default_organization binary(16)                               null,
+    id               binary(16) default (UUID_TO_BIN(UUID())) not null,
+    insert_timestamp datetime   default NOW()                 not null,
+    email            varchar(256)                             not null,
+    password         varchar(256)                             not null,
 
     constraint accounts_pk
         primary key (id)
@@ -36,6 +35,24 @@ create table organization_users
 
     constraint organization_users_pk
         primary key (organization_id, user_id)
+);
+
+create table user_settings
+(
+    id                        BIGINT auto_increment,
+    user_id                   binary(16)            not null,
+    default_organization      binary(16)            not null,
+    private_mode              boolean default false not null,
+    default_preview_pending   boolean default false not null,
+    default_sorting_order_asc boolean default false not null,
+    extra                     json                  null,
+
+    constraint user_settings_pk
+        primary key (id),
+    constraint user_settings_user_fk
+        foreign key (user_id)
+            references users (id)
+            on delete cascade
 );
 
 create table sessions
