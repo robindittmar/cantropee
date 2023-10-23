@@ -7,7 +7,7 @@ import {
     Transaction
 } from "../../services/transaction-service";
 import {Currencies, Money} from "ts-money";
-import {getSessionFromReq} from "../../services/login-service";
+import {getSessionFromReq} from "../../services/session-service";
 
 export const transactionsRouter = express.Router();
 

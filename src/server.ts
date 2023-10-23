@@ -8,6 +8,7 @@ import {initDatabaseConnection} from "./core/database";
 import {loginRouter} from "./routes/login-route";
 import {transactionsRouter} from "./routes/api/transactions-route";
 import {categoriesRouter} from "./routes/api/categories-route";
+import {exportRouter} from "./routes/api/export-route";
 
 
 async function main() {
@@ -30,6 +31,7 @@ async function main() {
     app.use('/login', loginRouter);
     app.use('/api/categories', categoriesRouter);
     app.use('/api/transactions', transactionsRouter);
+    app.use('/api/export', exportRouter);
 
     app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
         console.error(err);

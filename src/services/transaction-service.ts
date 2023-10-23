@@ -284,6 +284,45 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
     return result;
 }
 
+export async function getAllTransactions(organizationId: string): Promise<Transaction[]> {
+    let transactions: Transaction[] = [];
+    const categoriesLookup = await getCategoriesLookup(organizationId);
+
+    const conn = await getConnection();
+    const [rows] = await conn.query<TransactionModel[]>(
+        'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id,' +
+        '       insert_timestamp, effective_timestamp, active, ref_id, category_id, value,' +
+        '       value19, value7, vat19, vat7, note' +
+        ' FROM cantropee.transactions' +
+        ' WHERE organization_id = UUID_TO_BIN(?)',
+        [organizationId]
+    );
+    conn.release();
+
+    let count = 1;
+    for (const row of rows) {
+        transactions.push({
+            id: row.id,
+            rowIdx: count,
+            refId: row.ref_id,
+            category: categoriesLookup[row.category_id] ?? '[ERROR]',
+            insertTimestamp: row.insert_timestamp,
+            pending: undefined,
+            effectiveTimestamp: row.effective_timestamp,
+            value: new Money(row.value, Currencies['EUR']!),
+            value7: new Money(row.value7 ?? 0, Currencies['EUR']!),
+            value19: new Money(row.value19 ?? 0, Currencies['EUR']!),
+            vat7: new Money(row.vat7 ?? 0, Currencies['EUR']!),
+            vat19: new Money(row.vat19 ?? 0, Currencies['EUR']!),
+            note: row.note,
+        });
+
+        count += 1;
+    }
+
+    return transactions;
+}
+
 export async function insertTransaction(organizationId: string, t: Transaction) {
     const categoriesReverseLookup = await getCategoriesReverseLookup(organizationId);
     if (!(t.category in categoriesReverseLookup)) {
