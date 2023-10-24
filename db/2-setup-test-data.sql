@@ -89,7 +89,7 @@ INSERT INTO cantropee.users (id, email, password)
 VALUES (UUID_TO_BIN('303884b5-72b6-11ee-b507-0242ac110002'), 'affe2@dittmar.dev',
         '$2b$04$PuzS/bnPZNWjlqqLQ4kPeuNU/I/leh.zm9/GB2kHMX0aWuOVMjF4e');
 INSERT INTO cantropee.user_settings (user_id, default_organization)
-VALUES (UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'), UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'));
+VALUES (UUID_TO_BIN('303884b5-72b6-11ee-b507-0242ac110002'), UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'));
 
 # affe@dittmar.dev: admin@affen kiste
 INSERT INTO cantropee.organization_users (organization_id, user_id, role_id)
