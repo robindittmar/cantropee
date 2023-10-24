@@ -2,6 +2,9 @@ create schema if not exists cantropee;
 
 use cantropee;
 
+set autocommit = false;
+start transaction;
+
 create table organizations
 (
     id               binary(16) default (UUID_TO_BIN(UUID())) not null,
@@ -15,10 +18,11 @@ create table organizations
 
 create table users
 (
-    id               binary(16) default (UUID_TO_BIN(UUID())) not null,
-    insert_timestamp datetime   default NOW()                 not null,
-    email            varchar(256)                             not null,
-    password         varchar(256)                             not null,
+    id                      binary(16) default (UUID_TO_BIN(UUID())) not null,
+    insert_timestamp        datetime   default NOW()                 not null,
+    email                   varchar(256)                             not null,
+    password                varchar(256)                             not null,
+    require_password_change boolean    default true                  not null,
 
     constraint accounts_pk
         primary key (id)
@@ -31,7 +35,7 @@ create table organization_users
     organization_id  binary(16)             not null,
     user_id          binary(16)             not null,
     insert_timestamp datetime default NOW() not null,
-    role             BIGINT   default 0     not null,
+    role_id          binary(16)             not null,
 
     constraint organization_users_pk
         primary key (organization_id, user_id)
@@ -52,6 +56,22 @@ create table user_settings
     constraint user_settings_user_fk
         foreign key (user_id)
             references users (id)
+            on delete cascade
+);
+
+create table roles
+(
+    id               binary(16) default (UUID_TO_BIN(UUID())) not null,
+    organization_id  binary(16)                               not null,
+    insert_timestamp datetime   default NOW()                 not null,
+    name             varchar(256)                             not null,
+    privileges       json                                     not null,
+
+    constraint roles_pk
+        primary key (id),
+    constraint roles_organization_fk
+        foreign key (organization_id)
+            references organizations (id)
             on delete cascade
 );
 
@@ -123,3 +143,5 @@ create table balance
     constraint transactions_pk
         primary key (id)
 );
+
+commit;

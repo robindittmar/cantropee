@@ -1,13 +1,13 @@
 import {getConnection} from "../core/database";
 import {UserModel} from "../models/user-model";
-import {OrganizationUsersModel} from "../models/organization-users-model";
 import {ResultSetHeader} from "mysql2/index";
+import {Organization, getOrganizationsForUser} from "./organization-service";
 
 export interface User {
     id: string;
     email: string;
     settings: UserSettings;
-    organizations: string[];
+    organizations: Organization[];
 }
 
 export interface UserSettings {
@@ -18,24 +18,6 @@ export interface UserSettings {
     extra: object | null;
 }
 
-async function getOrganizationsForUser(userId: string): Promise<string[]> {
-    let organizationIds: string[] = [];
-
-    const conn = await getConnection();
-    const [dbUserOrgs] = await conn.query<OrganizationUsersModel[]>(
-        'SELECT BIN_TO_UUID(organization_id) AS organization_id, user_id, role' +
-        ' FROM cantropee.organization_users' +
-        ' WHERE user_id = UUID_TO_BIN(?)',
-        [userId]
-    );
-    conn.release();
-
-    for (const dbUserOrg of dbUserOrgs) {
-        organizationIds.push(dbUserOrg.organization_id);
-    }
-
-    return organizationIds;
-}
 
 export async function getUserById(id: string): Promise<User> {
     const conn = await getConnection();

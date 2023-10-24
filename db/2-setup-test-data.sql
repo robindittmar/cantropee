@@ -1,18 +1,66 @@
 use cantropee;
 
+set autocommit = false;
+start transaction;
+
+# 1st org
 INSERT INTO cantropee.organizations (id, name, currency)
 VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), 'cantropee', 'EUR');
 
+INSERT INTO cantropee.roles (id, organization_id, name, privileges)
+VALUES (UUID_TO_BIN('90f0ec06-72b5-11ee-b507-0242ac110002'), UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'),
+        'admin', '[
+    "read",
+    "write",
+    "admin"
+  ]');
+INSERT INTO cantropee.roles (id, organization_id, name, privileges)
+VALUES (UUID_TO_BIN('6a530821-72b8-11ee-b507-0242ac110002'), UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'),
+        'user', '[
+    "read",
+    "write"
+  ]');
+INSERT INTO cantropee.roles (id, organization_id, name, privileges)
+VALUES (UUID_TO_BIN('a9b3e697-72b8-11ee-b507-0242ac110002'), UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'),
+        'read-only', '[
+    "read"
+  ]');
+
+
+# affe@dittmar.dev
 INSERT INTO cantropee.users (id, email, password)
 VALUES (UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'), 'affe@dittmar.dev',
         '$2b$04$PuzS/bnPZNWjlqqLQ4kPeuNU/I/leh.zm9/GB2kHMX0aWuOVMjF4e');
 INSERT INTO cantropee.user_settings (user_id, default_organization)
 VALUES (UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'), UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'));
 
+# affe3@dittmar.dev
+INSERT INTO cantropee.users (id, email, password)
+VALUES (UUID_TO_BIN('59a4accc-72b6-11ee-b507-0242ac110002'), 'affe3@dittmar.dev',
+        '$2b$04$PuzS/bnPZNWjlqqLQ4kPeuNU/I/leh.zm9/GB2kHMX0aWuOVMjF4e');
+INSERT INTO cantropee.user_settings (user_id, default_organization)
+VALUES (UUID_TO_BIN('59a4accc-72b6-11ee-b507-0242ac110002'), UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'));
 
-INSERT INTO cantropee.organization_users (organization_id, user_id, role)
+# affe4@dittmar.dev
+INSERT INTO cantropee.users (id, email, password)
+VALUES (UUID_TO_BIN('8891a6d1-72b6-11ee-b507-0242ac110002'), 'affe4@dittmar.dev',
+        '$2b$04$PuzS/bnPZNWjlqqLQ4kPeuNU/I/leh.zm9/GB2kHMX0aWuOVMjF4e');
+INSERT INTO cantropee.user_settings (user_id, default_organization)
+VALUES (UUID_TO_BIN('8891a6d1-72b6-11ee-b507-0242ac110002'), UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'));
+
+
+# affe@dittmar.dev: admin@cantropee
+INSERT INTO cantropee.organization_users (organization_id, user_id, role_id)
 VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'),
-        1);
+        UUID_TO_BIN('90f0ec06-72b5-11ee-b507-0242ac110002'));
+# affe3@dittmar.dev: user@cantropee
+INSERT INTO cantropee.organization_users (organization_id, user_id, role_id)
+VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), UUID_TO_BIN('59a4accc-72b6-11ee-b507-0242ac110002'),
+        UUID_TO_BIN('6a530821-72b8-11ee-b507-0242ac110002'));
+# affe4@dittmar.dev: read-only@cantropee
+INSERT INTO cantropee.organization_users (organization_id, user_id, role_id)
+VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), UUID_TO_BIN('8891a6d1-72b6-11ee-b507-0242ac110002'),
+        UUID_TO_BIN('a9b3e697-72b8-11ee-b507-0242ac110002'));
 
 
 INSERT INTO cantropee.categories (id, organization_id, name)
@@ -24,6 +72,40 @@ VALUES (3, UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), 'Kassenabschöpf
 INSERT INTO cantropee.categories (id, organization_id, name)
 VALUES (4, UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), 'Lohnzahlung');
 
+# 2nd org
+INSERT INTO cantropee.organizations (id, name, currency)
+VALUES (UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'), 'affen kiste', 'EUR');
+
+INSERT INTO cantropee.roles (id, organization_id, name, privileges)
+VALUES (UUID_TO_BIN('51f9af4b-72b9-11ee-b507-0242ac110002'), UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'),
+        'admin', '[
+    "read",
+    "write",
+    "admin"
+  ]');
+
+# affe2@dittmar.dev
+INSERT INTO cantropee.users (id, email, password)
+VALUES (UUID_TO_BIN('303884b5-72b6-11ee-b507-0242ac110002'), 'affe2@dittmar.dev',
+        '$2b$04$PuzS/bnPZNWjlqqLQ4kPeuNU/I/leh.zm9/GB2kHMX0aWuOVMjF4e');
+INSERT INTO cantropee.user_settings (user_id, default_organization)
+VALUES (UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'), UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'));
+
+# affe@dittmar.dev: admin@affen kiste
+INSERT INTO cantropee.organization_users (organization_id, user_id, role_id)
+VALUES (UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'), UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'),
+        UUID_TO_BIN('51f9af4b-72b9-11ee-b507-0242ac110002'));
+# affe2@dittmar.dev: admin@affen kiste
+INSERT INTO cantropee.organization_users (organization_id, user_id, role_id)
+VALUES (UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'), UUID_TO_BIN('303884b5-72b6-11ee-b507-0242ac110002'),
+        UUID_TO_BIN('51f9af4b-72b9-11ee-b507-0242ac110002'));
+
+
+INSERT INTO cantropee.categories (id, organization_id, name)
+VALUES (5, UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'), 'Nicht spezifiziert');
+
+
+# 1st org: transactions
 INSERT INTO cantropee.transactions (organization_id, insert_timestamp, effective_timestamp, active, ref_id,
                                     category_id, value,
                                     value19, value7,
@@ -162,3 +244,5 @@ INSERT INTO cantropee.transactions (organization_id, insert_timestamp, effective
                                     vat19, vat7)
 VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), '2023-09-12 22:35:57', '2023-09-23 22:42:57', 1, null, 4,
         -8890, null, null, null, null);
+
+commit;
