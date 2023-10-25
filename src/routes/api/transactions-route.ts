@@ -4,10 +4,11 @@ import {
     getTransaction,
     getTransactions,
     insertTransaction,
-    Transaction
+    Transaction, updateTransaction
 } from "../../services/transaction-service";
 import {Currencies, Money} from "ts-money";
 import {getSessionFromReq} from "../../services/session-service";
+import {getConnection} from "../../core/database";
 
 export const transactionsRouter = express.Router();
 
@@ -96,9 +97,41 @@ transactionsRouter.post('/', async (req, res) => {
         res.send({success: false});
     }
 
-    let result = await insertTransaction(session.organizationId, transaction);
+    let result = await insertTransaction(await getConnection(), session.organizationId, transaction);
 
     res.send(result);
+});
+
+transactionsRouter.put('/', async (req, res) => {
+    const session = getSessionFromReq(req);
+
+    let transactionReq = req.body;
+    let transaction: Transaction = {
+        id: transactionReq.id,
+        rowIdx: transactionReq.rowIdx,
+        refId: transactionReq.refId,
+        category: transactionReq.category,
+        insertTimestamp: new Date(),
+        pending: undefined,
+        effectiveTimestamp: new Date(transactionReq.effectiveTimestamp),
+        value: new Money(Math.round(transactionReq.value), Currencies['EUR']!),
+        value19: new Money(Math.round(transactionReq.value19), Currencies['EUR']!),
+        value7: new Money(Math.round(transactionReq.value7), Currencies['EUR']!),
+        vat19: new Money(Math.round(transactionReq.vat19), Currencies['EUR']!),
+        vat7: new Money(Math.round(transactionReq.vat7), Currencies['EUR']!),
+        note: transactionReq.note,
+    };
+
+    if (transaction.note && transaction.note.length > 128) {
+        // TODO: Logging & error handling :)
+        console.error('note too long!');
+        res.status(400);
+        res.send({success: false});
+    }
+
+    let result = await updateTransaction(session.organizationId, transaction);
+
+    res.send({id: result});
 });
 
 transactionsRouter.get('/balance', async (req, res) => {

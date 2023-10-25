@@ -1,15 +1,16 @@
-import {getConnection} from "../core/database";
+import {getConnection, ResultUUID} from "../core/database";
 import {CountAllResult, TransactionModel} from "../models/transaction-model";
 import {Currencies, Money} from "ts-money";
 import {ResultSetHeader} from "mysql2";
 import {BalanceModel} from "../models/balance-model";
 import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
+import {PoolConnection} from "mysql2/promise";
 
 
 export interface Transaction {
     id: string;
     rowIdx: number;
-    refId: number | undefined;
+    refId: string | undefined;
     category: string;
     insertTimestamp: Date;
     pending: boolean | undefined;
@@ -50,7 +51,7 @@ async function recalculateBalance(organizationId: string, startingFrom: Date = n
     const conn = await getConnection();
     const [rows] = await conn.query<TransactionModel[]>(
         'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id,' +
-        '       insert_timestamp, effective_timestamp, active, ref_id,' +
+        '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_id) AS ref_id,' +
         '       category_id, value, value19, value7, vat19, vat7, note' +
         ' FROM cantropee.transactions' +
         ' WHERE organization_id = UUID_TO_BIN(?)' +
@@ -192,7 +193,7 @@ export async function getTransaction(organizationId: string, id: string): Promis
     const conn = await getConnection();
     const [result] = await conn.query<TransactionModel[]>(
         'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id, insert_timestamp,' +
-        '       effective_timestamp, active, ref_id, category_id, value, value19, value7,' +
+        '       effective_timestamp, active, BIN_TO_UUID(ref_id) AS ref_id, category_id, value, value19, value7,' +
         '       vat19, vat7, note' +
         ' FROM cantropee.transactions' +
         ' WHERE id = ?',
@@ -248,8 +249,8 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
     const sortDirection = reverse ? 'ASC' : 'DESC';
     const [rows] = await conn.query<TransactionModel[]>(
         'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id,' +
-        '       insert_timestamp, effective_timestamp, active, ref_id, category_id, value,' +
-        '       value19, value7, vat19, vat7, note' +
+        '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_id) AS ref_id,' +
+        '       category_id, value, value19, value7, vat19, vat7, note' +
         ' FROM cantropee.transactions' +
         ' WHERE organization_id = UUID_TO_BIN(?)' +
         ' AND active = true' +
@@ -291,8 +292,8 @@ export async function getAllTransactions(organizationId: string): Promise<Transa
     const conn = await getConnection();
     const [rows] = await conn.query<TransactionModel[]>(
         'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id,' +
-        '       insert_timestamp, effective_timestamp, active, ref_id, category_id, value,' +
-        '       value19, value7, vat19, vat7, note' +
+        '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_id) AS ref_id,' +
+        '       category_id, value, value19, value7, vat19, vat7, note' +
         ' FROM cantropee.transactions' +
         ' WHERE organization_id = UUID_TO_BIN(?)',
         [organizationId]
@@ -324,7 +325,7 @@ export async function getAllTransactions(organizationId: string): Promise<Transa
     return transactions;
 }
 
-export async function insertTransaction(organizationId: string, t: Transaction) {
+export async function insertTransaction(conn: PoolConnection, organizationId: string, t: Transaction) {
     const categoriesReverseLookup = await getCategoriesReverseLookup(organizationId);
     if (!(t.category in categoriesReverseLookup)) {
         throw new Error(`Invalid category '${t.category}'`);
@@ -335,11 +336,10 @@ export async function insertTransaction(organizationId: string, t: Transaction) 
         throw new Error('Invalid amount for transaction: 0');
     }
 
-    const conn = await getConnection();
     const [res] = await conn.query<ResultSetHeader>(
         'INSERT INTO cantropee.transactions' +
         ' (organization_id, effective_timestamp, ref_id, category_id, value, value19, value7, vat19, vat7, note)' +
-        ' VALUES (UUID_TO_BIN(?),?,?,?,?,?,?,?,?,?)',
+        ' VALUES (UUID_TO_BIN(?),?,UUID_TO_BIN(?),?,?,?,?,?,?,?)',
         [
             organizationId,
             t.effectiveTimestamp.toISOString().slice(0, 19).replace('T', ' '),
@@ -363,11 +363,42 @@ export async function insertTransaction(organizationId: string, t: Transaction) 
         ' AND effective_to > ?',
         [organizationId, t.effectiveTimestamp, t.effectiveTimestamp]
     );
-    conn.release();
 
     if (update.affectedRows < 1) {
         throw new Error('Could not mark balance as dirty');
     }
 
     return {id: res.insertId};
+}
+
+export async function updateTransaction(organizationId: string, t: Transaction): Promise<{ id: string }> {
+    let oldId = t.id;
+
+    const conn = await getConnection();
+    await conn.query('START TRANSACTION');
+
+    t.refId = oldId;
+    await insertTransaction(conn, organizationId, t);
+
+    const [update] = await conn.query<ResultSetHeader>(
+        'UPDATE cantropee.transactions SET active=false WHERE id=UUID_TO_BIN(?)',
+        [oldId]
+    );
+    if (update.affectedRows !== 1) {
+        await conn.query('ROLLBACK');
+        throw new Error('UpdateTransaction: Could not set transaction active=false');
+    }
+
+    const [newId] = await conn.query<ResultUUID[]>(
+        'SELECT BIN_TO_UUID(id) AS id FROM cantropee.transactions WHERE ref_id=UUID_TO_BIN(?) LIMIT 1',
+        [oldId]
+    );
+    let idResult = newId[0];
+    if (!idResult) {
+        await conn.query('ROLLBACK');
+        throw new Error('UpdateTransaction: Could not get ID from new transaction');
+    }
+
+    await conn.query('COMMIT');
+    return {id: idResult.id};
 }

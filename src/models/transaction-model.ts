@@ -10,7 +10,7 @@ export interface TransactionModel extends RowDataPacket {
     insert_timestamp: Date;
     effective_timestamp: Date;
     active: number;
-    ref_id: number | undefined;
+    ref_id: string | undefined;
     category_id: number;
     value: number;
     value19: number | undefined;

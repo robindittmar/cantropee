@@ -1,6 +1,11 @@
 import * as mysql from 'mysql2/promise';
+import {RowDataPacket} from "mysql2/promise";
 
 let mysqlConnectionPool: mysql.Pool;
+
+export interface ResultUUID extends RowDataPacket {
+    id: string;
+}
 
 export function initDatabaseConnection() {
     mysqlConnectionPool = mysql.createPool({

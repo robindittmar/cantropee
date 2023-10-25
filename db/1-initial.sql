@@ -120,8 +120,10 @@ create table transactions
     constraint transactions_pk
         primary key (id)
 );
-create index transactions_effective_timestamp_idx
-    on transactions (effective_timestamp);
+create index transactions_effective_timestamp_active_idx
+    on transactions (organization_id, effective_timestamp, active);
+create index transactions_ref_id_idx
+    on transactions (organization_id, ref_id);
 
 
 create table balance
