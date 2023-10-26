@@ -196,8 +196,9 @@ export async function getTransaction(organizationId: string, id: string): Promis
         '       effective_timestamp, active, BIN_TO_UUID(ref_id) AS ref_id, category_id, value, value19, value7,' +
         '       vat19, vat7, note' +
         ' FROM cantropee.transactions' +
-        ' WHERE id = ?',
-        [id]
+        ' WHERE id = UUID_TO_BIN(?)' +
+        ' AND organization_id = UUID_TO_BIN(?)',
+        [id, organizationId]
     );
     conn.release();
 

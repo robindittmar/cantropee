@@ -62,7 +62,7 @@ transactionsRouter.get('/', async (req, res) => {
     res.send(result);
 });
 
-transactionsRouter.get('/:id(^[0-9a-fA-F]{8}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{12}$)', async (req, res) => {
+transactionsRouter.get('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})/', async (req, res) => {
     const session = getSessionFromReq(req);
 
     let id = req.params['id'] ?? '0';
@@ -131,7 +131,7 @@ transactionsRouter.put('/', async (req, res) => {
 
     let result = await updateTransaction(session.organizationId, transaction);
 
-    res.send({id: result});
+    res.send(result);
 });
 
 transactionsRouter.get('/balance', async (req, res) => {
