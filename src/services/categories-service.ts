@@ -8,8 +8,13 @@ export interface Category {
     name: string;
 }
 
+const categoryCache: { [orgId: string]: Category[] } = {};
+
 export async function getCategories(organizationId: string): Promise<Category[]> {
-    let categories: Category[] = [];
+    let categories: Category[] = categoryCache[organizationId] ?? [];
+    if (categories.length > 0) {
+        return categories;
+    }
 
     const conn = await getConnection();
     const [result] = await conn.query<CategoryModel[]>(
@@ -25,6 +30,7 @@ export async function getCategories(organizationId: string): Promise<Category[]>
         });
     }
 
+    categoryCache[organizationId] = categories;
     return categories;
 }
 
@@ -56,16 +62,20 @@ export async function insertCategory(organizationId: string, category: Category)
     );
     conn.release();
 
+    delete categoryCache[organizationId];
     return result.affectedRows > 0;
 }
 
-export async function updateCategory(category: Category): Promise<boolean> {
+export async function updateCategory(organizationId: string, category: Category): Promise<boolean> {
     const conn = await getConnection();
     const [result] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.categories SET name = ? WHERE id = ?',
-        [category.name, category.id]
+        'UPDATE cantropee.categories SET name = ?' +
+        ' WHERE id = ?' +
+        ' AND organization_id = UUID_TO_BIN(?)',
+        [category.name, category.id, organizationId]
     );
     conn.release();
 
+    delete categoryCache[organizationId];
     return result.affectedRows > 0;
 }
