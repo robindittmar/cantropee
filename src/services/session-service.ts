@@ -2,7 +2,7 @@ import {getConnection} from "../core/database";
 import {SessionModel} from "../models/session-model";
 import {getUserById, User} from "./user-service";
 import {ResultSetHeader} from "mysql2";
-import {Request} from "express";
+import {NextFunction, Request, Response} from "express";
 
 export interface RequestWithSession extends Request {
     session?: Session;
@@ -26,6 +26,45 @@ export const getSessionFromReq = (req: Request): Session => {
     }
     return session;
 }
+
+export const validateSession = async (req: Request, res: Response, next: NextFunction) => {
+    // No login required
+    const excludePaths = ['/login', '/public'];
+    for (const path of excludePaths) {
+        if (req.path.startsWith(path)) {
+            next();
+            return;
+        }
+    }
+
+    // No session cookie present
+    if (!('sid' in req.cookies)) {
+        redirectToLogin(req, res);
+        return;
+    }
+
+    let sessionId = req.cookies['sid'];
+    let session = await getSession(sessionId);
+    // No session found
+    if (session === undefined) {
+        redirectToLogin(req, res);
+        return;
+    }
+
+    // if ()
+
+    let validUntil = new Date();
+    validUntil.setHours(validUntil.getHours() + 1);
+    if ((validUntil.getTime() - session.validUntil.getTime()) > 900000/*only after 15 mins*/) {
+        session.validUntil = validUntil;
+        if (!await revalidateSession(session)) {
+            throw new Error('Could not update session timestamp');
+        }
+    }
+
+    (req as RequestWithSession).session = session;
+    next();
+};
 
 export async function getSession(sessionId: string): Promise<Session | undefined> {
     if (sessionId in sessionCache) {
@@ -145,4 +184,17 @@ export async function deleteSession(session: Session): Promise<boolean> {
     }
 
     return success
+}
+
+function redirectToLogin(req: Request, res: Response) {
+    const excludePaths = ['/api', '/secure'];
+    for (const path of excludePaths) {
+        if (req.path.startsWith(path)) {
+            res.status(403);
+            res.send();
+            return;
+        }
+    }
+
+    res.redirect(`/login?redirect=${encodeURI(req.path)}`);
 }

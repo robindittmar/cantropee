@@ -1,44 +1,7 @@
-import {Request, Response, NextFunction} from "express";
 import {randomUUID} from "crypto";
 import * as bcrypt from 'bcrypt';
 import {getUserByEmail} from "./user-service";
-import {Session, RequestWithSession, getSession, insertSession, revalidateSession} from "./session-service";
-
-
-export const validateSession = async (req: Request, res: Response, next: NextFunction) => {
-    // No login required
-    const excludePaths = ['/login', '/public'];
-    for (const path of excludePaths) {
-        if (req.path.startsWith(path)) {
-            next();
-            return;
-        }
-    }
-
-    // No session cookie present
-    if (!('sid' in req.cookies)) {
-        redirectToLogin(req, res);
-        return;
-    }
-
-    let sessionId = req.cookies['sid'];
-    let session = await getSession(sessionId);
-    // No session found
-    if (session === undefined) {
-        redirectToLogin(req, res);
-        return;
-    }
-
-    let validUntil = new Date();
-    validUntil.setHours(validUntil.getHours() + 1);
-    session.validUntil = validUntil;
-    if (!await revalidateSession(session)) {
-        throw new Error('Could not update session timestamp');
-    }
-
-    (req as RequestWithSession).session = session;
-    next();
-};
+import {Session, insertSession} from "./session-service";
 
 
 export async function login(email: string, password: string): Promise<{
@@ -78,16 +41,5 @@ export async function login(email: string, password: string): Promise<{
     };
 }
 
-function redirectToLogin(req: Request, res: Response) {
-    const excludePaths = ['/api', '/secure'];
-    for (const path of excludePaths) {
-        if (req.path.startsWith(path)) {
-            res.status(403);
-            res.send();
-            return;
-        }
-    }
 
-    res.redirect(`/login?redirect=${encodeURI(req.path)}`);
-}
 

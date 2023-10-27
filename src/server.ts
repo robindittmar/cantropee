@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import logger from 'morgan';
 import express, {Request, Response, NextFunction} from 'express';
 import cookieParser from "cookie-parser";
-import {validateSession} from "./services/login-service";
+import {validateSession} from "./services/session-service";
 import {initDatabaseConnection} from "./core/database";
 import {loginRouter} from "./routes/login-route";
 import {logoutRouter} from "./routes/logout-route";
