@@ -5,10 +5,14 @@ import {getSessionFromReq} from "../../services/session-service";
 export const categoriesRouter = express.Router();
 
 
-categoriesRouter.get('/', async (req, res) => {
-    const session = getSessionFromReq(req);
+categoriesRouter.get('/', async (req, res, next) => {
+    try {
+        const session = getSessionFromReq(req);
 
-    const categories = await getCategories(session.organizationId);
-    res.send(categories);
+        const categories = await getCategories(session.organizationId);
+        res.send(categories);
+    } catch (err) {
+        next(err);
+    }
 });
 
