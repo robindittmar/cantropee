@@ -6,7 +6,6 @@ import {
     insertTransaction,
     Transaction, updateTransaction
 } from "../../services/transaction-service";
-import {Currencies, Money} from "ts-money";
 import {getSessionFromReq} from "../../services/session-service";
 import {getConnection} from "../../core/database";
 
@@ -82,11 +81,11 @@ transactionsRouter.post('/', async (req, res) => {
         insertTimestamp: new Date(),
         pending: undefined,
         effectiveTimestamp: new Date(transactionReq.effectiveTimestamp),
-        value: new Money(Math.round(transactionReq.value), Currencies['EUR']!),
-        value19: new Money(Math.round(transactionReq.value19), Currencies['EUR']!),
-        value7: new Money(Math.round(transactionReq.value7), Currencies['EUR']!),
-        vat19: new Money(Math.round(transactionReq.vat19), Currencies['EUR']!),
-        vat7: new Money(Math.round(transactionReq.vat7), Currencies['EUR']!),
+        value: Math.round(transactionReq.value),
+        value19: Math.round(transactionReq.value19),
+        value7: Math.round(transactionReq.value7),
+        vat19: Math.round(transactionReq.vat19),
+        vat7: Math.round(transactionReq.vat7),
         note: transactionReq.note,
     };
 
@@ -114,11 +113,11 @@ transactionsRouter.put('/', async (req, res) => {
         insertTimestamp: new Date(),
         pending: undefined,
         effectiveTimestamp: new Date(transactionReq.effectiveTimestamp),
-        value: new Money(Math.round(transactionReq.value), Currencies['EUR']!),
-        value19: new Money(Math.round(transactionReq.value19), Currencies['EUR']!),
-        value7: new Money(Math.round(transactionReq.value7), Currencies['EUR']!),
-        vat19: new Money(Math.round(transactionReq.vat19), Currencies['EUR']!),
-        vat7: new Money(Math.round(transactionReq.vat7), Currencies['EUR']!),
+        value: Math.round(transactionReq.value),
+        value19: Math.round(transactionReq.value19),
+        value7: Math.round(transactionReq.value7),
+        vat19: Math.round(transactionReq.vat19),
+        vat7: Math.round(transactionReq.vat7),
         note: transactionReq.note,
     };
 
