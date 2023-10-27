@@ -12,6 +12,7 @@ import {transactionsRouter} from "./routes/api/transactions-route";
 import {categoriesRouter} from "./routes/api/categories-route";
 import {usersRouter} from "./routes/api/users-route";
 import {exportRouter} from "./routes/api/export-route";
+import {sessionRouter} from "./routes/api/session-route";
 
 
 async function main() {
@@ -37,6 +38,7 @@ async function main() {
     app.use('/api/categories', categoriesRouter);
     app.use('/api/transactions', transactionsRouter);
     app.use('/api/users', usersRouter);
+    app.use('/api/session', sessionRouter);
     app.use('/api/export', exportRouter);
 
     app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

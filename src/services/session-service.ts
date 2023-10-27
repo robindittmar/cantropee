@@ -57,7 +57,7 @@ export async function getSession(sessionId: string): Promise<Session | undefined
         user: await getUserById(dbSession.user_id),
         organizationId: dbSession.organization_id,
     };
-    sessionCache[sessionId] = session;
+    updateSessionCache(session);
 
     return session;
 }
@@ -89,7 +89,7 @@ export async function updateSession(session: Session): Promise<boolean> {
     const conn = await getConnection();
     const [updateSessionResult] = await conn.execute<ResultSetHeader>(
         'UPDATE cantropee.sessions' +
-        ' SET organization_id = ?' +
+        ' SET organization_id = UUID_TO_BIN(?)' +
         ' WHERE session_id = ?',
         [
             session.organizationId,
@@ -100,13 +100,13 @@ export async function updateSession(session: Session): Promise<boolean> {
 
     let success = updateSessionResult.affectedRows > 0;
     if (success) {
-        sessionCache[session.sessionId] = session;
+        updateSessionCache(session);
     }
 
     return success;
 }
 
-export async function updateSessionCache(session: Session) {
+export function updateSessionCache(session: Session) {
     sessionCache[session.sessionId] = session;
 }
 

@@ -6,7 +6,13 @@ export const usersRouter = express.Router();
 
 
 usersRouter.get('/me', async (req, res) => {
-    res.send(getSessionFromReq(req).user);
+    const session = getSessionFromReq(req);
+    let user = {
+        ...session.user,
+        currentOrganizationId: session.organizationId
+    };
+
+    res.send(user);
 });
 
 usersRouter.post('/me/settings', async (req, res) => {
