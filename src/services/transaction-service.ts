@@ -46,6 +46,19 @@ export interface Balance {
     }
 }
 
+const transactionsDataEqual = (a: Transaction, b: Transaction): boolean => {
+    return (
+        a.effectiveTimestamp.getTime() === b.effectiveTimestamp.getTime() &&
+        a.category === b.category &&
+        a.value === b.value &&
+        a.value19 === b.value19 &&
+        a.value7 === b.value7 &&
+        a.vat19 === b.vat19 &&
+        a.vat7 === b.vat7 &&
+        a.note === b.note
+    );
+};
+
 async function recalculateBalance(organizationId: string, startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date()): Promise<BalanceModel> {
     const conn = await getConnection();
     const [rows] = await conn.query<TransactionModel[]>(
@@ -373,6 +386,12 @@ export async function insertTransaction(conn: PoolConnection, organizationId: st
 
 export async function updateTransaction(organizationId: string, t: Transaction): Promise<{ id: string }> {
     let oldId = t.id;
+
+    let oldTransaction = await getTransaction(organizationId, oldId);
+
+    if (transactionsDataEqual(t, oldTransaction)) {
+        throw new Error('Transactions identical');
+    }
 
     const conn = await getConnection();
     await conn.query('START TRANSACTION');

@@ -128,9 +128,15 @@ transactionsRouter.put('/', async (req, res) => {
         res.send({success: false});
     }
 
-    let result = await updateTransaction(session.organizationId, transaction);
+    try {
+        let result = await updateTransaction(session.organizationId, transaction);
 
-    res.send(result);
+        res.send(result);
+    } catch (err) {
+        console.log(err);
+        res.status(500);
+        res.send({success: false});
+    }
 });
 
 transactionsRouter.get('/balance', async (req, res) => {
