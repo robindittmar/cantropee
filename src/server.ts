@@ -6,6 +6,8 @@ import cookieParser from "cookie-parser";
 import {validateSession} from "./services/login-service";
 import {initDatabaseConnection} from "./core/database";
 import {loginRouter} from "./routes/login-route";
+import {logoutRouter} from "./routes/logout-route";
+import {changePasswordRouter} from "./routes/change-password-route";
 import {transactionsRouter} from "./routes/api/transactions-route";
 import {categoriesRouter} from "./routes/api/categories-route";
 import {usersRouter} from "./routes/api/users-route";
@@ -30,6 +32,8 @@ async function main() {
 
     app.use('/', express.static(path.join(__dirname, '../static')));
     app.use('/login', loginRouter);
+    app.use('/logout', logoutRouter);
+    app.use('/change-password', changePasswordRouter);
     app.use('/api/categories', categoriesRouter);
     app.use('/api/transactions', transactionsRouter);
     app.use('/api/users', usersRouter);

@@ -1,6 +1,7 @@
 import {getConnection} from "../core/database";
+import * as bcrypt from 'bcrypt';
 import {UserModel} from "../models/user-model";
-import {ResultSetHeader} from "mysql2/index";
+import {ResultSetHeader} from "mysql2";
 import {Organization, getOrganizationsForUser} from "./organization-service";
 
 export interface User {
@@ -52,10 +53,10 @@ export async function getUserById(id: string): Promise<User> {
     };
 }
 
-export async function getUserByEmail(email: string): Promise<[User, string]> {
+export async function getUserByEmail(email: string): Promise<[User, string, boolean]> {
     const conn = await getConnection();
     const [dbUsers] = await conn.query<UserModel[]>(
-        'SELECT BIN_TO_UUID(U.id) AS id, email, password,' +
+        'SELECT BIN_TO_UUID(U.id) AS id, email, password, require_password_change,' +
         '       BIN_TO_UUID(default_organization) AS default_organization,' +
         '       private_mode, default_preview_pending,' +
         '       default_sorting_order_asc, extra' +
@@ -84,7 +85,22 @@ export async function getUserByEmail(email: string): Promise<[User, string]> {
         organizations: await getOrganizationsForUser(dbUser.id),
     };
 
-    return [user, dbUser.password];
+    return [user, dbUser.password, dbUser.require_password_change !== 0];
+}
+
+export async function updateUserPassword(user: User, password: string): Promise<boolean> {
+    const passwordHash = await bcrypt.hash(password, 4);
+
+    const conn = await getConnection();
+    const [update] = await conn.query<ResultSetHeader>(
+        'UPDATE cantropee.users SET password=?, ' +
+        '                           require_password_change=false' +
+        ' WHERE id=UUID_TO_BIN(?)',
+        [passwordHash, user.id]
+    );
+    conn.release();
+
+    return update.affectedRows === 1;
 }
 
 export async function updateUserSettings(user: User): Promise<boolean> {
@@ -107,7 +123,7 @@ export async function updateUserSettings(user: User): Promise<boolean> {
             ]
         );
 
-        return result.affectedRows > 0;
+        return result.affectedRows === 1;
     } catch {
         return false;
     }

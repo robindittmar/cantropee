@@ -4,6 +4,7 @@ export interface UserModel extends RowDataPacket {
     id: string;
     email: string;
     password: string;
+    require_password_change: number;
     default_organization: string;
     private_mode: number;
     default_preview_pending: number;

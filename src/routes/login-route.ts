@@ -21,7 +21,10 @@ loginRouter.post('/', async (req, res) => {
         redirectUri = req.query['redirect'];
     }
 
-    let {success, sessionId} = await login(req.body['email'], req.body['password']);
+    let {success, sessionId, changePassword} = await login(req.body['email'], req.body['password']);
+    if (changePassword) {
+        redirectUri = `/change-password?redirect=${redirectUri}`;
+    }
     if (success) {
         res.cookie('sid', sessionId);
         res.redirect(redirectUri);

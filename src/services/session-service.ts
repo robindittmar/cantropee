@@ -37,7 +37,9 @@ export async function getSession(sessionId: string): Promise<Session | undefined
 
     const conn = await getConnection();
     const [getSessionResult] = await conn.query<SessionModel[]>(
-        'SELECT id, session_id, valid_until, BIN_TO_UUID(user_id) AS user_id, BIN_TO_UUID(organization_id) AS organization_id FROM cantropee.sessions' +
+        'SELECT id, session_id, valid_until, BIN_TO_UUID(user_id) AS user_id,' +
+        '       BIN_TO_UUID(organization_id) AS organization_id' +
+        ' FROM cantropee.sessions' +
         ' WHERE session_id = ?' +
         ' AND valid_until > NOW()',
         [sessionId]
@@ -86,7 +88,7 @@ export async function insertSession(session: Session): Promise<boolean> {
 export async function updateSession(session: Session): Promise<boolean> {
     const conn = await getConnection();
     const [updateSessionResult] = await conn.execute<ResultSetHeader>(
-        'UPDATE sessions' +
+        'UPDATE cantropee.sessions' +
         ' SET organization_id = ?' +
         ' WHERE session_id = ?',
         [
@@ -111,7 +113,7 @@ export async function updateSessionCache(session: Session) {
 export async function revalidateSession(session: Session): Promise<boolean> {
     const conn = await getConnection();
     const [updateSessionResult] = await conn.execute<ResultSetHeader>(
-        'UPDATE sessions' +
+        'UPDATE cantropee.sessions' +
         ' SET valid_until = ?' +
         ' WHERE session_id = ?',
         [
@@ -127,4 +129,20 @@ export async function revalidateSession(session: Session): Promise<boolean> {
     }
 
     return success;
+}
+
+export async function deleteSession(session: Session): Promise<boolean> {
+    const conn = await getConnection();
+    const [updateSessionResult] = await conn.execute<ResultSetHeader>(
+        'DELETE FROM cantropee.sessions WHERE session_id = ?',
+        [session.sessionId]
+    );
+    conn.release();
+
+    let success = updateSessionResult.affectedRows > 0;
+    if (success) {
+        delete sessionCache[session.sessionId];
+    }
+
+    return success
 }

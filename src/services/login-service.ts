@@ -41,11 +41,13 @@ export const validateSession = async (req: Request, res: Response, next: NextFun
 };
 
 
-export async function login(email: string, password: string): Promise<{ success: boolean, sessionId: string }> {
-    // set password: const passwordHash = await bcrypt.hash(password, 4);
-
+export async function login(email: string, password: string): Promise<{
+    success: boolean,
+    sessionId: string,
+    changePassword: boolean
+}> {
     try {
-        const [user, hash] = await getUserByEmail(email);
+        const [user, hash, changePassword] = await getUserByEmail(email);
 
         if (await bcrypt.compare(password, hash)) {
             let validUntil = new Date();
@@ -61,6 +63,7 @@ export async function login(email: string, password: string): Promise<{ success:
                 return {
                     success: true,
                     sessionId: session.sessionId,
+                    changePassword: changePassword,
                 };
             }
         }
@@ -71,6 +74,7 @@ export async function login(email: string, password: string): Promise<{ success:
     return {
         success: false,
         sessionId: '',
+        changePassword: false,
     };
 }
 
