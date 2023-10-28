@@ -22,6 +22,18 @@ export interface Transaction {
     note: string | undefined;
 }
 
+// interface TransactionDiff {
+//     insertTimestamp: Date;
+//     category: string | undefined;
+//     effectiveTimestamp: Date | undefined;
+//     value: number | undefined;
+//     value7: number | undefined;
+//     value19: number | undefined;
+//     vat7: number | undefined;
+//     vat19: number | undefined;
+//     note: string | undefined;
+// }
+
 export interface PaginatedTransactions {
     total: number;
     start: number;
@@ -237,6 +249,14 @@ export async function getTransaction(organizationId: string, id: string): Promis
         note: t.note,
     };
 }
+
+// export async function calcTransactionHistoryDiff(organizationId: string, transactionId: string): Promise<TransactionDiff[]> {
+//     const conn = await getConnection();
+//
+//     let transaction = await getTransaction(organizationId, transactionId);
+//
+//     return [];
+// }
 
 export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number, reverse: boolean): Promise<PaginatedTransactions> {
     let result: PaginatedTransactions = {
