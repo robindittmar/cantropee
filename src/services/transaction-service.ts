@@ -4,6 +4,7 @@ import {ResultSetHeader} from "mysql2";
 import {BalanceModel} from "../models/balance-model";
 import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
 import {PoolConnection} from "mysql2/promise";
+import {bookPendingRecurringTransactions} from "./recurring-transaction-service";
 
 
 export interface Transaction {
@@ -59,6 +60,24 @@ export interface Balance {
         }
     }
 }
+
+const modelToTransaction = (t: TransactionModel, lookup: { [id: number]: string }): Transaction => {
+    return {
+        id: t.uuid,
+        refId: t.ref_uuid,
+        rowIdx: 1,
+        category: lookup[t.category_id] ?? '[ERROR]',
+        insertTimestamp: t.insert_timestamp,
+        pending: t.effective_timestamp > new Date(),
+        effectiveTimestamp: t.effective_timestamp,
+        value: t.value,
+        value7: t.value7 ?? 0,
+        value19: t.value19 ?? 0,
+        vat7: t.vat7 ?? 0,
+        vat19: t.vat19 ?? 0,
+        note: t.note,
+    };
+};
 
 const transactionsDataEqual = (a: Transaction, b: Transaction): boolean => {
     return (
@@ -213,9 +232,25 @@ export async function getBalance(organizationId: string, effectiveFrom: Date, ef
     };
 }
 
-export async function getTransaction(organizationId: string, id: string): Promise<Transaction> {
-    const categoriesLookup = await getCategoriesLookup(organizationId);
+export async function getTransactionByDatabaseId(conn: PoolConnection, organizationId: string, id: number): Promise<Transaction> {
+    const [result] = await conn.query<TransactionModel[]>(
+        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, insert_timestamp,' +
+        '       effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid, category_id, value, value19, value7,' +
+        '       vat19, vat7, note' +
+        ' FROM cantropee.transactions' +
+        ' WHERE id = ?',
+        [id]
+    );
+    conn.release();
 
+    if (result.length < 1 || result[0] === undefined) {
+        throw new Error('Transaction not found');
+    }
+
+    return modelToTransaction(result[0], await getCategoriesLookup(organizationId));
+}
+
+export async function getTransaction(organizationId: string, id: string): Promise<Transaction> {
     const conn = await getConnection();
     const [result] = await conn.query<TransactionModel[]>(
         'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, insert_timestamp,' +
@@ -232,24 +267,7 @@ export async function getTransaction(organizationId: string, id: string): Promis
         throw new Error('Transaction not found');
     }
 
-    // TODO: Check ref_id and follow that chain (when param """recursive""" = true)
-
-    let t = result[0];
-    return {
-        id: t.uuid,
-        refId: t.ref_uuid,
-        rowIdx: 1,
-        category: categoriesLookup[t.category_id] ?? '[ERROR]',
-        insertTimestamp: t.insert_timestamp,
-        pending: t.effective_timestamp > new Date(),
-        effectiveTimestamp: t.effective_timestamp,
-        value: t.value,
-        value7: t.value7 ?? 0,
-        value19: t.value19 ?? 0,
-        vat7: t.vat7 ?? 0,
-        vat19: t.vat19 ?? 0,
-        note: t.note,
-    };
+    return modelToTransaction(result[0], await getCategoriesLookup(organizationId));
 }
 
 export async function getTransactionHistory(organizationId: string, transactionId: string): Promise<Transaction[]> {
@@ -342,6 +360,9 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
         count: 0,
         data: []
     };
+
+    // TODO: Yeah, maybe not here :D
+    await bookPendingRecurringTransactions(organizationId);
 
     const categoriesLookup = await getCategoriesLookup(organizationId);
 
@@ -475,7 +496,7 @@ export async function insertTransaction(conn: PoolConnection, organizationId: st
     );
 
     if (update.affectedRows < 1) {
-        throw new Error('Could not mark balance as dirty');
+        console.warn('Could not mark balance as dirty');
     }
 
     return res.insertId;
