@@ -22,17 +22,17 @@ export interface Transaction {
     note: string | undefined;
 }
 
-// interface TransactionDiff {
-//     insertTimestamp: Date;
-//     category: string | undefined;
-//     effectiveTimestamp: Date | undefined;
-//     value: number | undefined;
-//     value7: number | undefined;
-//     value19: number | undefined;
-//     vat7: number | undefined;
-//     vat19: number | undefined;
-//     note: string | undefined;
-// }
+interface TransactionDiff {
+    insertTimestamp: Date;
+    category: string | undefined;
+    effectiveTimestamp: Date | undefined;
+    value: number | undefined;
+    value7: number | undefined;
+    value19: number | undefined;
+    vat7: number | undefined;
+    vat19: number | undefined;
+    note: string | undefined;
+}
 
 export interface PaginatedTransactions {
     total: number;
@@ -286,6 +286,43 @@ export async function getTransactionHistory(organizationId: string, transactionI
     }
 
     return transactions;
+}
+
+export async function calcTransactionHistoryDiff(organizationId: string, transactionId: string): Promise<TransactionDiff[]> {
+    const transaction = await getTransaction(organizationId, transactionId);
+    const history = await getTransactionHistory(organizationId, transactionId);
+
+    let result: TransactionDiff[] = [];
+    result.push({
+        insertTimestamp: transaction.insertTimestamp,
+        category: transaction.category,
+        effectiveTimestamp: transaction.effectiveTimestamp,
+        value: transaction.value,
+        value7: transaction.value7,
+        value19: transaction.value19,
+        vat7: transaction.vat7,
+        vat19: transaction.vat19,
+        note: transaction.note,
+    });
+
+    let prev = transaction;
+    for (const t of history) {
+        result.push({
+            insertTimestamp: t.insertTimestamp,
+            category: t.category !== prev.category ? t.category : undefined,
+            effectiveTimestamp: t.effectiveTimestamp !== prev.effectiveTimestamp ? t.effectiveTimestamp : undefined,
+            value: t.value !== prev.value ? t.value : undefined,
+            value7: t.value7 !== prev.value7 ? t.value7 : undefined,
+            value19: t.value19 !== prev.value19 ? t.value19 : undefined,
+            vat7: t.vat7 !== prev.vat7 ? t.vat7 : undefined,
+            vat19: t.vat19 !== prev.vat19 ? t.vat19 : undefined,
+            note: t.note !== prev.note ? t.note : undefined,
+        });
+
+        prev = t;
+    }
+
+    return result;
 }
 
 export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number, reverse: boolean): Promise<PaginatedTransactions> {
