@@ -23,15 +23,17 @@ export interface Transaction {
 }
 
 interface TransactionDiff {
+    id: string;
     insertTimestamp: Date;
-    category: string | undefined;
     effectiveTimestamp: Date | undefined;
+    category: string | undefined;
     value: number | undefined;
     value7: number | undefined;
     value19: number | undefined;
     vat7: number | undefined;
     vat19: number | undefined;
     note: string | undefined;
+    isDeposit: boolean | undefined;
 }
 
 export interface PaginatedTransactions {
@@ -294,32 +296,40 @@ export async function calcTransactionHistoryDiff(organizationId: string, transac
 
     let result: TransactionDiff[] = [];
     result.push({
+        id: transaction.id,
         insertTimestamp: transaction.insertTimestamp,
-        category: transaction.category,
         effectiveTimestamp: transaction.effectiveTimestamp,
+        category: transaction.category,
         value: transaction.value,
         value7: transaction.value7,
         value19: transaction.value19,
         vat7: transaction.vat7,
         vat19: transaction.vat19,
         note: transaction.note,
+        isDeposit: transaction.value > 0,
     });
 
     let prev = transaction;
+    let prevIsDeposit = transaction.value > 0;
     for (const t of history) {
+        let isDeposit = t.value > 0;
         result.push({
+            id: t.id,
             insertTimestamp: t.insertTimestamp,
+            effectiveTimestamp: t.effectiveTimestamp.getTime() !== prev.effectiveTimestamp.getTime()
+                ? t.effectiveTimestamp : undefined,
             category: t.category !== prev.category ? t.category : undefined,
-            effectiveTimestamp: t.effectiveTimestamp !== prev.effectiveTimestamp ? t.effectiveTimestamp : undefined,
             value: t.value !== prev.value ? t.value : undefined,
             value7: t.value7 !== prev.value7 ? t.value7 : undefined,
             value19: t.value19 !== prev.value19 ? t.value19 : undefined,
             vat7: t.vat7 !== prev.vat7 ? t.vat7 : undefined,
             vat19: t.vat19 !== prev.vat19 ? t.vat19 : undefined,
             note: t.note !== prev.note ? t.note : undefined,
+            isDeposit: isDeposit !== prevIsDeposit ? isDeposit : undefined,
         });
 
         prev = t;
+        prevIsDeposit = isDeposit;
     }
 
     return result;

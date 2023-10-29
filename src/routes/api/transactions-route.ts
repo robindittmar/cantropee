@@ -1,11 +1,12 @@
 import express from 'express';
 import {
+    Transaction,
+    calcTransactionHistoryDiff,
     getBalance,
     getTransaction,
-    getTransactionHistory,
     getTransactions,
     insertTransaction,
-    Transaction, updateTransaction
+    updateTransaction
 } from "../../services/transaction-service";
 import {getSessionFromReq} from "../../services/session-service";
 import {getConnection} from "../../core/database";
@@ -83,7 +84,7 @@ transactionsRouter.get('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-
         const session = getSessionFromReq(req);
 
         let id = req.params['id'] ?? '0';
-        let result = await getTransactionHistory(session.organizationId, id);
+        let result = await calcTransactionHistoryDiff(session.organizationId, id);
         res.send(result);
     } catch (err) {
         next(err);
