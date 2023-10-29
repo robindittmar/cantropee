@@ -149,6 +149,8 @@ export async function updateRecurringTransactionNextExecution(organizationId: st
     return dbUpdate.affectedRows === 1;
 }
 
+// Get local time zone in frontend:
+// Intl.DateTimeFormat().resolvedOptions().timeZone
 const leapToNextExecution = (recurring: RecurringTransaction): Date => {
     let current = moment.utc(recurring.nextExecution).tz(recurring.timezone);
 
