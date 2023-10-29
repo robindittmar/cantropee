@@ -135,8 +135,10 @@ create unique index transactions_uuid_idx
     on transactions (uuid);
 create index transactions_effective_timestamp_active_idx
     on transactions (organization_uuid, effective_timestamp, active);
-create index transactions_ref_id_idx
+create index transactions_ref_uuid_idx
     on transactions (organization_uuid, ref_uuid);
+create index transactions_current_version_uuid_idx
+    on transactions (organization_uuid, current_version_uuid);
 
 
 create table balance
