@@ -4,7 +4,7 @@ import {RowDataPacket} from "mysql2/promise";
 let mysqlConnectionPool: mysql.Pool;
 
 export interface ResultUUID extends RowDataPacket {
-    id: string;
+    uuid: string;
 }
 
 export function initDatabaseConnection() {

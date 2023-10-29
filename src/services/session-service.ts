@@ -76,8 +76,8 @@ export async function getSession(sessionId: string): Promise<Session | undefined
 
     const conn = await getConnection();
     const [getSessionResult] = await conn.query<SessionModel[]>(
-        'SELECT id, session_id, valid_until, BIN_TO_UUID(user_id) AS user_id,' +
-        '       BIN_TO_UUID(organization_id) AS organization_id' +
+        'SELECT id, session_id, valid_until, BIN_TO_UUID(user_uuid) AS user_uuid,' +
+        '       BIN_TO_UUID(organization_uuid) AS organization_uuid' +
         ' FROM cantropee.sessions' +
         ' WHERE session_id = ?' +
         ' AND valid_until > NOW()',
@@ -93,8 +93,8 @@ export async function getSession(sessionId: string): Promise<Session | undefined
     const session: Session = {
         sessionId: dbSession.session_id,
         validUntil: dbSession.valid_until,
-        user: await getUserById(dbSession.user_id),
-        organizationId: dbSession.organization_id,
+        user: await getUserById(dbSession.user_uuid),
+        organizationId: dbSession.organization_uuid,
     };
     updateSessionCache(session);
 
@@ -105,7 +105,7 @@ export async function insertSession(session: Session): Promise<boolean> {
     const conn = await getConnection();
     const [result] = await conn.execute<ResultSetHeader>(
         'INSERT INTO cantropee.sessions' +
-        ' (session_id, valid_until, user_id, organization_id)' +
+        ' (session_id, valid_until, user_uuid, organization_uuid)' +
         ' VALUES (?,?,UUID_TO_BIN(?),UUID_TO_BIN(?))',
         [
             session.sessionId,
@@ -128,7 +128,7 @@ export async function updateSession(session: Session): Promise<boolean> {
     const conn = await getConnection();
     const [updateSessionResult] = await conn.execute<ResultSetHeader>(
         'UPDATE cantropee.sessions' +
-        ' SET organization_id = UUID_TO_BIN(?)' +
+        ' SET organization_uuid = UUID_TO_BIN(?)' +
         ' WHERE session_id = ?',
         [
             session.organizationId,

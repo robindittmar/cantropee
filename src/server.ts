@@ -43,7 +43,7 @@ async function main() {
 
     app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
         console.error(err);
-        res.status(500).send({err});
+        res.status(500).send({code: 500, status: 'Internal Server Error'});
     });
 
     app.listen(port, () => {

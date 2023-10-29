@@ -5,12 +5,14 @@ export interface CountAllResult extends RowDataPacket {
 }
 
 export interface TransactionModel extends RowDataPacket {
-    id: string;
-    organization_id: string;
+    id: number;
+    uuid: string;
+    organization_uuid: string;
     insert_timestamp: Date;
     effective_timestamp: Date;
     active: number;
-    ref_id: string | undefined;
+    ref_uuid: string | undefined;
+    current_version_uuid: string | undefined;
     category_id: number;
     value: number;
     value19: number | undefined;

@@ -6,7 +6,7 @@ export interface CountAllResult extends RowDataPacket {
 
 export interface BalanceModel extends RowDataPacket {
     id: number;
-    organization_id: string;
+    organization_uuid: string;
     insert_timestamp: Date;
     effective_from: Date;
     effective_to: Date;

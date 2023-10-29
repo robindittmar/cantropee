@@ -20,7 +20,7 @@ export async function login(email: string, password: string): Promise<{
                 sessionId: randomUUID() + randomUUID() + randomUUID() + randomUUID(),
                 validUntil,
                 user,
-                organizationId: user.settings.defaultOrganization ?? user.organizations[0] ?? ''
+                organizationId: user.settings.defaultOrganization ?? user.organizations[0]?.id ?? ''
             };
             if (await insertSession(session)) {
                 return {

@@ -1,6 +1,6 @@
 import {getConnection} from "../core/database";
 import {CategoryModel} from "../models/category-model";
-import {ResultSetHeader} from "mysql2/index";
+import {ResultSetHeader} from "mysql2";
 
 
 export interface Category {
@@ -18,7 +18,7 @@ export async function getCategories(organizationId: string): Promise<Category[]>
 
     const conn = await getConnection();
     const [result] = await conn.query<CategoryModel[]>(
-        'SELECT id, name FROM cantropee.categories WHERE organization_id = UUID_TO_BIN(?)',
+        'SELECT id, name FROM cantropee.categories WHERE organization_uuid = UUID_TO_BIN(?)',
         [organizationId]
     );
     conn.release();
@@ -57,7 +57,7 @@ export async function getCategoriesReverseLookup(organizationId: string): Promis
 export async function insertCategory(organizationId: string, category: Category): Promise<boolean> {
     const conn = await getConnection();
     const [result] = await conn.query<ResultSetHeader>(
-        'INSERT INTO cantropee.categories (organization_id, name) VALUES (UUID_TO_BIN(?),?)',
+        'INSERT INTO cantropee.categories (organization_uuid, name) VALUES (UUID_TO_BIN(?),?)',
         [organizationId, category.name]
     );
     conn.release();
@@ -71,7 +71,7 @@ export async function updateCategory(organizationId: string, category: Category)
     const [result] = await conn.query<ResultSetHeader>(
         'UPDATE cantropee.categories SET name = ?' +
         ' WHERE id = ?' +
-        ' AND organization_id = UUID_TO_BIN(?)',
+        ' AND organization_uuid = UUID_TO_BIN(?)',
         [category.name, category.id, organizationId]
     );
     conn.release();

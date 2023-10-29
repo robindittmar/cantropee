@@ -23,13 +23,13 @@ export interface UserSettings {
 export async function getUserById(id: string): Promise<User> {
     const conn = await getConnection();
     const [dbUsers] = await conn.query<UserModel[]>(
-        'SELECT BIN_TO_UUID(U.id) AS id, email, password,' +
-        '       BIN_TO_UUID(default_organization) AS default_organization,' +
+        'SELECT BIN_TO_UUID(U.uuid) AS uuid, email, password,' +
+        '       BIN_TO_UUID(default_organization_uuid) AS default_organization_uuid,' +
         '       private_mode, default_preview_pending,' +
         '       default_sorting_order_asc, extra' +
         ' FROM cantropee.users U' +
-        ' INNER JOIN cantropee.user_settings S ON U.id=S.user_id' +
-        ' WHERE U.id = UUID_TO_BIN(?)',
+        ' INNER JOIN cantropee.user_settings S ON U.uuid=S.user_uuid' +
+        ' WHERE U.uuid = UUID_TO_BIN(?)',
         [id]
     );
     conn.release();
@@ -40,28 +40,28 @@ export async function getUserById(id: string): Promise<User> {
 
     let dbUser = dbUsers[0];
     return {
-        id: dbUser.id,
+        id: dbUser.uuid,
         email: dbUser.email,
         settings: {
-            defaultOrganization: dbUser.default_organization,
+            defaultOrganization: dbUser.default_organization_uuid,
             privateMode: dbUser.private_mode !== 0,
             defaultPreviewPending: dbUser.default_preview_pending !== 0,
             defaultSortingOrderAsc: dbUser.default_sorting_order_asc !== 0,
             extra: dbUser.extra,
         },
-        organizations: await getOrganizationsForUser(dbUser.id),
+        organizations: await getOrganizationsForUser(dbUser.uuid),
     };
 }
 
 export async function getUserByEmail(email: string): Promise<[User, string, boolean]> {
     const conn = await getConnection();
     const [dbUsers] = await conn.query<UserModel[]>(
-        'SELECT BIN_TO_UUID(U.id) AS id, email, password, require_password_change,' +
-        '       BIN_TO_UUID(default_organization) AS default_organization,' +
+        'SELECT BIN_TO_UUID(U.uuid) AS uuid, email, password, require_password_change,' +
+        '       BIN_TO_UUID(default_organization_uuid) AS default_organization_uuid,' +
         '       private_mode, default_preview_pending,' +
         '       default_sorting_order_asc, extra' +
         ' FROM cantropee.users U' +
-        ' INNER JOIN cantropee.user_settings S ON U.id=S.user_id' +
+        ' INNER JOIN cantropee.user_settings S ON U.uuid=S.user_uuid' +
         ' WHERE U.email = ?',
         [email]
     );
@@ -72,17 +72,17 @@ export async function getUserByEmail(email: string): Promise<[User, string, bool
     }
 
     let dbUser = dbUsers[0];
-    const user = {
-        id: dbUser.id,
+    const user: User = {
+        id: dbUser.uuid,
         email: dbUser.email,
         settings: {
-            defaultOrganization: dbUser.default_organization,
+            defaultOrganization: dbUser.default_organization_uuid,
             privateMode: dbUser.private_mode !== 0,
             defaultPreviewPending: dbUser.default_preview_pending !== 0,
             defaultSortingOrderAsc: dbUser.default_sorting_order_asc !== 0,
             extra: dbUser.extra,
         },
-        organizations: await getOrganizationsForUser(dbUser.id),
+        organizations: await getOrganizationsForUser(dbUser.uuid),
     };
 
     return [user, dbUser.password, dbUser.require_password_change !== 0];
@@ -93,9 +93,8 @@ export async function updateUserPassword(user: User, password: string): Promise<
 
     const conn = await getConnection();
     const [update] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.users SET password=?, ' +
-        '                           require_password_change=false' +
-        ' WHERE id=UUID_TO_BIN(?)',
+        'UPDATE cantropee.users SET password=?, require_password_change=false' +
+        ' WHERE uuid=UUID_TO_BIN(?)',
         [passwordHash, user.id]
     );
     conn.release();
@@ -107,12 +106,12 @@ export async function updateUserSettings(user: User): Promise<boolean> {
     try {
         const conn = await getConnection();
         const [result] = await conn.query<ResultSetHeader>(
-            'UPDATE cantropee.user_settings SET default_organization=UUID_TO_BIN(?),' +
+            'UPDATE cantropee.user_settings SET default_organization_uuid=UUID_TO_BIN(?),' +
             '                                   private_mode=?,' +
             '                                   default_preview_pending=?,' +
             '                                   default_sorting_order_asc=?,' +
             '                                   extra=?' +
-            ' WHERE user_id = UUID_TO_BIN(?)',
+            ' WHERE user_uuid = UUID_TO_BIN(?)',
             [
                 user.settings.defaultOrganization,
                 user.settings.privateMode,

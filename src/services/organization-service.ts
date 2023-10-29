@@ -13,17 +13,17 @@ export async function getOrganizationsForUser(userId: string): Promise<Organizat
 
     const conn = await getConnection();
     const [dbUserOrgs] = await conn.query<OrganizationModel[]>(
-        'SELECT BIN_TO_UUID(O.id) AS id, O.name AS name, O.currency AS currency, O.insert_timestamp AS insert_timestamp' +
+        'SELECT BIN_TO_UUID(O.uuid) AS uuid, O.name AS name, O.currency AS currency, O.insert_timestamp AS insert_timestamp' +
         ' FROM cantropee.organization_users OU' +
-        ' INNER JOIN cantropee.organizations O ON OU.organization_id=O.id' +
-        ' WHERE user_id = UUID_TO_BIN(?)',
+        ' INNER JOIN cantropee.organizations O ON OU.organization_uuid=O.uuid' +
+        ' WHERE user_uuid = UUID_TO_BIN(?)',
         [userId]
     );
     conn.release();
 
     for (const dbUserOrg of dbUserOrgs) {
         organizations.push({
-            id: dbUserOrg.id,
+            id: dbUserOrg.uuid,
             name: dbUserOrg.name,
             currency: dbUserOrg.currency,
         });
