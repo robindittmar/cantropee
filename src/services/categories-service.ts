@@ -9,6 +9,22 @@ export interface Category {
 }
 
 const categoryCache: { [orgId: string]: Category[] } = {};
+const categoryLookupCache: { [orgId: string]: { [id: number]: string } } = {};
+const categoryReverseLookupCache: { [orgId: string]: { [id: string]: number } } = {};
+
+const updateCache = (orgId: string, categories: Category[]) => {
+    categoryCache[orgId] = categories;
+
+    let lookup: { [id: number]: string } = {};
+    let reverseLookup: { [id: string]: number } = {};
+    categories.forEach(category => {
+        lookup[category.id] = category.name;
+        reverseLookup[category.name] = category.id;
+    });
+
+    categoryLookupCache[orgId] = lookup;
+    categoryReverseLookupCache[orgId] = reverseLookup;
+};
 
 export async function getCategories(organizationId: string): Promise<Category[]> {
     let categories: Category[] = categoryCache[organizationId] ?? [];
@@ -30,26 +46,34 @@ export async function getCategories(organizationId: string): Promise<Category[]>
         });
     }
 
-    categoryCache[organizationId] = categories;
+    updateCache(organizationId, categories);
     return categories;
 }
 
 export async function getCategoriesLookup(organizationId: string): Promise<{ [id: number]: string }> {
-    const categories = await getCategories(organizationId);
-    let lookup: { [id: number]: string } = {};
-    categories.forEach(category => {
-        lookup[category.id] = category.name;
-    });
+    let lookup = categoryLookupCache[organizationId];
+    if (!lookup) {
+        await getCategories(organizationId);
+
+        lookup = categoryLookupCache[organizationId];
+        if (!lookup) {
+            throw new Error('Fatal cache error');
+        }
+    }
 
     return lookup;
 }
 
 export async function getCategoriesReverseLookup(organizationId: string): Promise<{ [id: string]: number }> {
-    const categories = await getCategories(organizationId);
-    let lookup: { [id: string]: number } = {};
-    categories.forEach(category => {
-        lookup[category.name] = category.id;
-    });
+    let lookup = categoryReverseLookupCache[organizationId];
+    if (!lookup) {
+        await getCategories(organizationId);
+
+        lookup = categoryReverseLookupCache[organizationId];
+        if (!lookup) {
+            throw new Error('Fatal cache error');
+        }
+    }
 
     return lookup;
 }
