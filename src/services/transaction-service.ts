@@ -319,11 +319,11 @@ export async function calcTransactionHistoryDiff(organizationId: string, transac
             effectiveTimestamp: t.effectiveTimestamp.getTime() !== prev.effectiveTimestamp.getTime()
                 ? t.effectiveTimestamp : undefined,
             category: t.category !== prev.category ? t.category : undefined,
-            value: t.value !== prev.value ? t.value : undefined,
-            value7: t.value7 !== prev.value7 ? t.value7 : undefined,
-            value19: t.value19 !== prev.value19 ? t.value19 : undefined,
-            vat7: t.vat7 !== prev.vat7 ? t.vat7 : undefined,
-            vat19: t.vat19 !== prev.vat19 ? t.vat19 : undefined,
+            value: Math.abs(t.value) !== Math.abs(prev.value) ? t.value : undefined,
+            value7: Math.abs(t.value7) !== Math.abs(prev.value7) ? t.value7 : undefined,
+            value19: Math.abs(t.value19) !== Math.abs(prev.value19) ? t.value19 : undefined,
+            vat7: Math.abs(t.vat7) !== Math.abs(prev.vat7) ? t.vat7 : undefined,
+            vat19: Math.abs(t.vat19) !== Math.abs(prev.vat19) ? t.vat19 : undefined,
             note: t.note !== prev.note ? t.note : undefined,
             isDeposit: isDeposit !== prevIsDeposit ? isDeposit : undefined,
         });
@@ -456,11 +456,11 @@ export async function insertTransaction(conn: PoolConnection, organizationId: st
             t.refId,
             categoryId,
             t.value,
-            t.value19,
-            t.value7,
-            t.vat19,
-            t.vat7,
-            t.note
+            t.value19 !== 0 ? t.value19 : null,
+            t.value7 !== 0 ? t.value7 : null,
+            t.vat19 !== 0 ? t.vat19 : null,
+            t.vat7 !== 0 ? t.vat7 : null,
+            t.note,
         ]
     );
 
