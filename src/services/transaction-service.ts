@@ -262,7 +262,7 @@ export async function getTransactionHistory(organizationId: string, transactionI
         ' FROM cantropee.transactions' +
         ' WHERE current_version_uuid = UUID_TO_BIN(?)' +
         ' AND organization_uuid = UUID_TO_BIN(?)' +
-        ' ORDER BY insert_timestamp ASC',
+        ' ORDER BY insert_timestamp DESC',
         [transactionId, organizationId]
     );
     conn.release();
