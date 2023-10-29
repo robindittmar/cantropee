@@ -161,4 +161,37 @@ create table balance
         primary key (id)
 );
 
+create table recurring_transactions
+(
+    id                BIGINT auto_increment                  not null,
+    uuid              binary(16) default UUID_TO_BIN(UUID()) not null,
+    organization_uuid binary(16)                             not null,
+    insert_timestamp  datetime   default NOW()               not null,
+    active            boolean    default true                not null,
+    timezone          varchar(64)                            not null,
+    execution_policy  integer                                not null,
+    first_execution   datetime                               not null,
+    next_execution    datetime                               not null,
+    last_execution    datetime                               null,
+    category_id       BIGINT                                 not null,
+    value             BIGINT                                 not null,
+    value19           BIGINT                                 null,
+    value7            BIGINT                                 null,
+    vat19             BIGINT                                 null,
+    vat7              BIGINT                                 null,
+    note              varchar(128)                           null,
+
+    constraint recurring_transactions_pk
+        primary key (id)
+);
+
+create table recurring_booked
+(
+    recurring_uuid   binary(16) not null,
+    transaction_uuid binary(16) not null,
+
+    constraint recurring_booked_pk
+        primary key (recurring_uuid, transaction_uuid)
+);
+
 commit;
