@@ -2,6 +2,7 @@ import express from 'express';
 import {
     getBalance,
     getTransaction,
+    getTransactionHistory,
     getTransactions,
     insertTransaction,
     Transaction, updateTransaction
@@ -77,6 +78,18 @@ transactionsRouter.get('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-
     }
 });
 
+transactionsRouter.get('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})/history', async (req, res, next) => {
+    try {
+        const session = getSessionFromReq(req);
+
+        let id = req.params['id'] ?? '0';
+        let result = await getTransactionHistory(session.organizationId, id);
+        res.send(result);
+    } catch (err) {
+        next(err);
+    }
+});
+
 transactionsRouter.post('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
@@ -107,7 +120,7 @@ transactionsRouter.post('/', async (req, res, next) => {
 
         let result = await insertTransaction(await getConnection(), session.organizationId, transaction);
 
-        res.send(result);
+        res.send(result.toString());
     } catch (err) {
         next(err);
     }

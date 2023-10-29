@@ -250,13 +250,44 @@ export async function getTransaction(organizationId: string, id: string): Promis
     };
 }
 
-// export async function calcTransactionHistoryDiff(organizationId: string, transactionId: string): Promise<TransactionDiff[]> {
-//     const conn = await getConnection();
-//
-//     let transaction = await getTransaction(organizationId, transactionId);
-//
-//     return [];
-// }
+export async function getTransactionHistory(organizationId: string, transactionId: string): Promise<Transaction[]> {
+    let transactions = [];
+
+    const categoriesLookup = await getCategoriesLookup(organizationId);
+
+    const conn = await getConnection();
+    const [result] = await conn.query<TransactionModel[]>(
+        'SELECT BIN_TO_UUID(id) AS id, BIN_TO_UUID(organization_id) AS organization_id, insert_timestamp,' +
+        '       effective_timestamp, active, BIN_TO_UUID(ref_id) AS ref_id, category_id, value, value19, value7,' +
+        '       vat19, vat7, note' +
+        ' FROM cantropee.transactions' +
+        ' WHERE current_version_id = UUID_TO_BIN(?)' +
+        ' AND organization_id = UUID_TO_BIN(?)' +
+        ' ORDER BY insert_timestamp ASC',
+        [transactionId, organizationId]
+    );
+    conn.release();
+
+    for (const row of result) {
+        transactions.push({
+            id: row.id,
+            rowIdx: 0,
+            refId: row.ref_id,
+            category: categoriesLookup[row.category_id] ?? '[ERROR]',
+            insertTimestamp: row.insert_timestamp,
+            pending: false,
+            effectiveTimestamp: row.effective_timestamp,
+            value: row.value,
+            value7: row.value7 ?? 0,
+            value19: row.value19 ?? 0,
+            vat7: row.vat7 ?? 0,
+            vat19: row.vat19 ?? 0,
+            note: row.note,
+        });
+    }
+
+    return transactions;
+}
 
 export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number, reverse: boolean): Promise<PaginatedTransactions> {
     let result: PaginatedTransactions = {
@@ -401,43 +432,58 @@ export async function insertTransaction(conn: PoolConnection, organizationId: st
         throw new Error('Could not mark balance as dirty');
     }
 
-    return {id: res.insertId};
+    return res.insertId;
 }
 
 export async function updateTransaction(organizationId: string, t: Transaction): Promise<{ id: string }> {
     let oldId = t.id;
-
     let oldTransaction = await getTransaction(organizationId, oldId);
 
     if (transactionsDataEqual(t, oldTransaction)) {
         throw new Error('Transactions identical');
     }
 
+    let uuid: string = '';
     const conn = await getConnection();
-    await conn.query('START TRANSACTION');
+    try {
+        await conn.query('START TRANSACTION');
 
-    t.refId = oldId;
-    await insertTransaction(conn, organizationId, t);
+        t.refId = oldId;
+        await insertTransaction(conn, organizationId, t);
+        const [newId] = await conn.query<ResultUUID[]>(
+            'SELECT BIN_TO_UUID(id) AS id FROM cantropee.transactions WHERE ref_id=UUID_TO_BIN(?) LIMIT 1',
+            [oldId]
+        );
+        let idResult = newId[0];
+        if (!idResult) {
+            await conn.query('ROLLBACK');
+            throw new Error('UpdateTransaction: Could not get ID for new transaction');
+        }
+        uuid = idResult.id;
 
-    const [update] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.transactions SET active=false WHERE id=UUID_TO_BIN(?)',
-        [oldId]
-    );
-    if (update.affectedRows !== 1) {
+        const [updateLastVersion] = await conn.query<ResultSetHeader>(
+            'UPDATE cantropee.transactions SET active=false, current_version_id=UUID_TO_BIN(?) WHERE id=UUID_TO_BIN(?)',
+            [uuid, oldId]
+        );
+        if (updateLastVersion.affectedRows !== 1) {
+            await conn.query('ROLLBACK');
+            throw new Error('UpdateTransaction: Could not set transaction active=false');
+        }
+
+        const [_updatePreviousVerions] = await conn.query<ResultSetHeader>(
+            'UPDATE cantropee.transactions' +
+            ' SET current_version_id=UUID_TO_BIN(?)' +
+            ' WHERE current_version_id=UUID_TO_BIN(?)',
+            [uuid, oldId]
+        );
+
+        await conn.query('COMMIT');
+    } catch (err) {
+        console.log(err);
         await conn.query('ROLLBACK');
-        throw new Error('UpdateTransaction: Could not set transaction active=false');
+    } finally {
+        conn.release();
     }
 
-    const [newId] = await conn.query<ResultUUID[]>(
-        'SELECT BIN_TO_UUID(id) AS id FROM cantropee.transactions WHERE ref_id=UUID_TO_BIN(?) LIMIT 1',
-        [oldId]
-    );
-    let idResult = newId[0];
-    if (!idResult) {
-        await conn.query('ROLLBACK');
-        throw new Error('UpdateTransaction: Could not get ID from new transaction');
-    }
-
-    await conn.query('COMMIT');
-    return {id: idResult.id};
+    return {id: uuid};
 }

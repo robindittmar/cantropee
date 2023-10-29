@@ -109,6 +109,7 @@ create table transactions
     effective_timestamp datetime   default NOW()                 not null,
     active              boolean    default true                  not null,
     ref_id              binary(16)                               null,
+    current_version_id  binary(16)                               null,
     category_id         BIGINT                                   not null,
     value               BIGINT                                   not null,
     value19             BIGINT                                   null,
