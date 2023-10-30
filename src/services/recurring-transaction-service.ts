@@ -1,6 +1,6 @@
 import {getConnection} from "../core/database";
 import {RecurringTransactionModel} from "../models/recurring-transaction-model";
-import {getCategoriesLookup} from "./categories-service";
+import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
 import {getTransactionByDatabaseId, insertTransaction, Transaction} from "./transaction-service";
 import {ResultSetHeader} from "mysql2";
 import moment from 'moment-timezone';
@@ -136,6 +136,37 @@ export async function getRecurringTransactions(organizationId: string, nextExecu
     return recurringTransactions;
 }
 
+export async function insertRecurringTransaction(organizationId: string, recurring: RecurringTransaction): Promise<number> {
+    const lookup = await getCategoriesReverseLookup(organizationId);
+
+    const conn = await getConnection();
+    const [result] = await conn.query<ResultSetHeader>(
+        'INSERT INTO cantropee.recurring_transactions' +
+        ' (organization_uuid, timezone, execution_policy, execution_policy_data,' +
+        ' first_execution, next_execution, last_execution, category_id,' +
+        ' value, value19, value7, vat19, vat7, note)' +
+        'VALUES (UUID_TO_BIN(?),?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [
+            organizationId,
+            recurring.timezone,
+            recurring.executionPolicy,
+            recurring.executionPolicyData,
+            recurring.firstExecution,
+            recurring.firstExecution,
+            recurring.lastExecution,
+            lookup[recurring.category] ?? 0,
+            recurring.value,
+            recurring.value19,
+            recurring.value7,
+            recurring.vat19,
+            recurring.vat7,
+            recurring.note,
+        ]
+    );
+
+    return result.insertId;
+}
+
 export async function updateRecurringTransactionNextExecution(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction): Promise<boolean> {
     const [dbUpdate] = await conn.execute<ResultSetHeader>(
         'UPDATE cantropee.recurring_transactions' +
@@ -222,7 +253,9 @@ export async function bookPendingRecurringTransactions(organizationId: string): 
 
 export async function updateTransactionLink(conn: PoolConnection, oldId: string, newId: string): Promise<boolean> {
     let [result] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.recurring_booked SET transaction_uuid=? WHERE transaction_uuid=?',
+        'UPDATE cantropee.recurring_booked' +
+        ' SET transaction_uuid=UUID_TO_BIN(?)' +
+        ' WHERE transaction_uuid=UUID_TO_BIN(?)',
         [newId, oldId]
     );
 

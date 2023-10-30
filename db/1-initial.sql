@@ -192,12 +192,15 @@ create index recurring_transactions_next_execution_active_idx
 
 create table recurring_booked
 (
+    id               BIGINT auto_increment  not null,
     recurring_uuid   binary(16)             not null,
     transaction_uuid binary(16)             not null,
     insert_timestamp datetime default NOW() not null,
 
     constraint recurring_booked_pk
-        primary key (recurring_uuid, transaction_uuid)
+        primary key (id)
 );
+create unique index recurring_booked_recurring_uuid_transaction_uuid_idx
+    on recurring_booked (recurring_uuid, transaction_uuid);
 
 commit;

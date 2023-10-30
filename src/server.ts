@@ -9,6 +9,7 @@ import {loginRouter} from "./routes/login-route";
 import {logoutRouter} from "./routes/logout-route";
 import {changePasswordRouter} from "./routes/change-password-route";
 import {transactionsRouter} from "./routes/api/transactions-route";
+import {recurringTransactionsRouter} from "./routes/api/recurring-transactions-route";
 import {categoriesRouter} from "./routes/api/categories-route";
 import {usersRouter} from "./routes/api/users-route";
 import {exportRouter} from "./routes/api/export-route";
@@ -37,6 +38,7 @@ async function main() {
     app.use('/change-password', changePasswordRouter);
     app.use('/api/categories', categoriesRouter);
     app.use('/api/transactions', transactionsRouter);
+    app.use('/api/recurring', recurringTransactionsRouter);
     app.use('/api/users', usersRouter);
     app.use('/api/session', sessionRouter);
     app.use('/api/export', exportRouter);
