@@ -28,9 +28,9 @@ VALUES (UUID_TO_BIN('a9b3e697-72b8-11ee-b507-0242ac110002'), UUID_TO_BIN('6ba780
 
 
 # affe@dittmar.dev
-INSERT INTO cantropee.users (uuid, email, password)
+INSERT INTO cantropee.users (uuid, email, password, require_password_change)
 VALUES (UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'), 'affe@dittmar.dev',
-        '$2b$04$PuzS/bnPZNWjlqqLQ4kPeuNU/I/leh.zm9/GB2kHMX0aWuOVMjF4e');
+        '$2b$04$PuzS/bnPZNWjlqqLQ4kPeuNU/I/leh.zm9/GB2kHMX0aWuOVMjF4e', false);
 INSERT INTO cantropee.user_settings (user_uuid, default_organization_uuid)
 VALUES (UUID_TO_BIN('712d61c4-7026-11ee-bc40-0242ac110002'), UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'));
 
