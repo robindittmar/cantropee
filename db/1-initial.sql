@@ -185,6 +185,8 @@ create table recurring_transactions
     constraint recurring_transactions_pk
         primary key (id)
 );
+create index recurring_transactions_uuid_organization_uuid_idx
+    on recurring_transactions (uuid, organization_uuid);
 create index recurring_transactions_next_execution_active_idx
     on recurring_transactions (organization_uuid, next_execution, active);
 

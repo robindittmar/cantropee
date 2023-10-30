@@ -1,10 +1,10 @@
-import {getConnection, ResultUUID} from "../core/database";
+import {getConnection} from "../core/database";
 import {CountAllResult, TransactionModel} from "../models/transaction-model";
 import {ResultSetHeader} from "mysql2";
 import {BalanceModel} from "../models/balance-model";
 import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
 import {PoolConnection} from "mysql2/promise";
-import {bookPendingRecurringTransactions} from "./recurring-transaction-service";
+import {bookPendingRecurringTransactions, updateTransactionLink} from "./recurring-transaction-service";
 
 
 export interface Transaction {
@@ -516,17 +516,9 @@ export async function updateTransaction(organizationId: string, t: Transaction):
         await conn.query('START TRANSACTION');
 
         t.refId = oldId;
-        await insertTransaction(conn, organizationId, t);
-        const [getNew] = await conn.query<ResultUUID[]>(
-            'SELECT BIN_TO_UUID(uuid) AS uuid FROM cantropee.transactions WHERE ref_uuid=UUID_TO_BIN(?) LIMIT 1',
-            [oldId]
-        );
-        let idResult = getNew[0];
-        if (!idResult) {
-            await conn.query('ROLLBACK');
-            throw new Error('UpdateTransaction: Could not get ID for new transaction');
-        }
-        newId = idResult.uuid;
+        const id = await insertTransaction(conn, organizationId, t);
+        let newTransaction = await getTransactionByDatabaseId(conn, organizationId, id);
+        newId = newTransaction.id;
 
         const [updateLastVersion] = await conn.query<ResultSetHeader>(
             'UPDATE cantropee.transactions SET active=false, current_version_uuid=UUID_TO_BIN(?) WHERE uuid=UUID_TO_BIN(?)',
@@ -543,6 +535,10 @@ export async function updateTransaction(organizationId: string, t: Transaction):
             ' WHERE current_version_uuid=UUID_TO_BIN(?)',
             [newId, oldId]
         );
+
+        // Ultimately this should be an event -- "transactions has updated";
+        // which recurring transactions subscribe to.
+        await updateTransactionLink(conn, oldId, newId);
 
         await conn.query('COMMIT');
     } catch (err) {

@@ -119,11 +119,15 @@ transactionsRouter.post('/', async (req, res, next) => {
             res.send({success: false});
         }
 
+        let result: number = 0;
         const conn = await getConnection();
-        let result = await insertTransaction(conn, session.organizationId, transaction);
-        conn.release();
+        try {
+            result = await insertTransaction(conn, session.organizationId, transaction);
+        } finally {
+            conn.release();
+        }
 
-        res.send(result.toString());
+        res.send({success: result !== 0});
     } catch (err) {
         next(err);
     }
@@ -134,7 +138,6 @@ transactionsRouter.put('/', async (req, res, next) => {
         const session = getSessionFromReq(req);
 
         let transactionReq = req.body;
-        console.log(transactionReq.effectiveTimestamp);
         let transaction: Transaction = {
             id: transactionReq.id,
             rowIdx: transactionReq.rowIdx,
@@ -150,7 +153,7 @@ transactionsRouter.put('/', async (req, res, next) => {
             vat7: Math.round(transactionReq.vat7),
             note: transactionReq.note,
         };
-        console.log(transaction);
+
         if (transaction.note && transaction.note.length > 128) {
             // TODO: Logging & error handling :)
             console.error('note too long!');

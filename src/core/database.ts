@@ -17,14 +17,6 @@ export function initDatabaseConnection() {
         database: 'cantropee',
         timezone: 'Z',
     });
-
-    let acquired = 0;
-    mysqlConnectionPool.on('acquire', () => {
-        acquired += 1;
-    });
-    mysqlConnectionPool.on('release', () => {
-        acquired -= 1;
-    });
 }
 
 export async function getConnection() {

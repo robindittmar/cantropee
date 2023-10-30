@@ -267,4 +267,10 @@ INSERT INTO cantropee.transactions (organization_uuid, insert_timestamp, effecti
 VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), '2023-09-12 22:35:57', '2023-09-23 22:42:57', 1, null, 4,
         -8890, null, null, null, null);
 
+# recurring
+INSERT INTO recurring_transactions (organization_uuid, timezone, execution_policy, first_execution, next_execution,
+                                    category_id, value, note)
+VALUES (UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), 'Europe/Berlin', 0, '2022-12-31 23:00:00',
+        '2022-12-31 23:00:00', 1, 100000, 'recurring every 1st of the month');
+
 commit;

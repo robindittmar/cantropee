@@ -4,6 +4,7 @@ import {getCategoriesLookup} from "./categories-service";
 import {getTransactionByDatabaseId, insertTransaction, Transaction} from "./transaction-service";
 import {ResultSetHeader} from "mysql2";
 import moment from 'moment-timezone';
+import {PoolConnection} from "mysql2/promise";
 
 export enum ExecutionPolicy {
     StartOfMonth,
@@ -86,14 +87,14 @@ export async function getRecurringTransaction(organizationId: string, id: string
     };
 }
 
-export async function getRecurringTransactions(organizationId: string, pendingOnly: boolean = false): Promise<RecurringTransaction[]> {
-    const query = pendingOnly ?
+export async function getRecurringTransactions(organizationId: string, nextExecutionSmallerEqual: Date | undefined = undefined): Promise<RecurringTransaction[]> {
+    const query = !!nextExecutionSmallerEqual ?
         'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
         '       insert_timestamp, timezone, execution_policy, execution_policy_data, first_execution,' +
         '       next_execution, last_execution, category_id, value, value19, value7, vat19, vat7, note' +
         ' FROM cantropee.recurring_transactions' +
         ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND next_execution <= NOW()' +
+        ' AND next_execution <= ?' +
         ' AND active = true'
         :
         'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
@@ -106,7 +107,7 @@ export async function getRecurringTransactions(organizationId: string, pendingOn
     const conn = await getConnection();
     const [dbRecurring] = await conn.query<RecurringTransactionModel[]>(
         query,
-        [organizationId]
+        [organizationId, nextExecutionSmallerEqual]
     );
     conn.release();
 
@@ -135,8 +136,7 @@ export async function getRecurringTransactions(organizationId: string, pendingOn
     return recurringTransactions;
 }
 
-export async function updateRecurringTransactionNextExecution(organizationId: string, recurring: RecurringTransaction): Promise<boolean> {
-    const conn = await getConnection();
+export async function updateRecurringTransactionNextExecution(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction): Promise<boolean> {
     const [dbUpdate] = await conn.execute<ResultSetHeader>(
         'UPDATE cantropee.recurring_transactions' +
         ' SET next_execution=?' +
@@ -144,7 +144,6 @@ export async function updateRecurringTransactionNextExecution(organizationId: st
         ' AND uuid=UUID_TO_BIN(?)',
         [recurring.nextExecution, organizationId, recurring.id]
     );
-    conn.release();
 
     return dbUpdate.affectedRows === 1;
 }
@@ -157,20 +156,28 @@ const leapToNextExecution = (recurring: RecurringTransaction): Date => {
     if (recurring.executionPolicy === ExecutionPolicy.StartOfMonth) {
         let next = moment(current).add(1, 'month');
         return moment(next.utc()).toDate();
-    } else {
+    } else if (recurring.executionPolicy === ExecutionPolicy.EndOfMonth) {
         let next = moment(current).add(1, 'day').endOf('month').endOf('day');
         return moment(next.utc()).toDate();
     }
+
+    return current.utc().toDate();
 };
 
 export async function bookPendingRecurringTransactions(organizationId: string): Promise<string[]> {
     let newIds: string[] = [];
 
-    let pending = await getRecurringTransactions(organizationId, true);
+    // Pretend it's x months into the future, to book recurring transactions
+    // for preview in advance. (implies a lot of difficult "household" tasks
+    // to keep data consistent)
+    // let now = new Date();
+    // now.setMonth(now.getMonth() + 3);
+
+    const now = new Date();
+    let pending = await getRecurringTransactions(organizationId, now);
 
     const conn = await getConnection();
     try {
-        let now = new Date();
         for (const recurring of pending) {
             while (recurring.nextExecution <= now) {
                 let t = makeTransactionFromRecurring(recurring);
@@ -182,7 +189,6 @@ export async function bookPendingRecurringTransactions(organizationId: string): 
                     console.error('Error writing transaction, rolled back.' + t);
                     break;
                 }
-                console.log(transactionId);
 
                 let transaction = await getTransactionByDatabaseId(conn, organizationId, transactionId);
 
@@ -203,7 +209,7 @@ export async function bookPendingRecurringTransactions(organizationId: string): 
                 recurring.nextExecution = leapToNextExecution(recurring);
             }
 
-            if (!await updateRecurringTransactionNextExecution(organizationId, recurring)) {
+            if (!await updateRecurringTransactionNextExecution(conn, organizationId, recurring)) {
                 console.error('Uh oh, could not update recurring transaction: ' + JSON.stringify(recurring));
             }
         }
@@ -212,4 +218,13 @@ export async function bookPendingRecurringTransactions(organizationId: string): 
     }
 
     return newIds;
+}
+
+export async function updateTransactionLink(conn: PoolConnection, oldId: string, newId: string): Promise<boolean> {
+    let [result] = await conn.query<ResultSetHeader>(
+        'UPDATE cantropee.recurring_booked SET transaction_uuid=? WHERE transaction_uuid=?',
+        [newId, oldId]
+    );
+
+    return result.affectedRows > 0;
 }
