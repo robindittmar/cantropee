@@ -167,6 +167,18 @@ export async function insertRecurringTransaction(organizationId: string, recurri
     return result.insertId;
 }
 
+async function setRecurringTransactionInactive(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction): Promise<boolean> {
+    const [dbUpdate] = await conn.execute<ResultSetHeader>(
+        'UPDATE cantropee.recurring_transactions' +
+        ' SET active=false' +
+        ' WHERE organization_uuid=UUID_TO_BIN(?)' +
+        ' AND uuid=UUID_TO_BIN(?)',
+        [organizationId, recurring.id]
+    );
+
+    return dbUpdate.affectedRows === 1;
+}
+
 export async function updateRecurringTransactionNextExecution(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction): Promise<boolean> {
     const [dbUpdate] = await conn.execute<ResultSetHeader>(
         'UPDATE cantropee.recurring_transactions' +
@@ -236,6 +248,14 @@ export async function bookPendingRecurringTransactions(organizationId: string): 
 
                 newIds.push(transaction.id);
                 recurring.nextExecution = leapToNextExecution(recurring);
+                if (recurring.lastExecution) {
+                    if (recurring.nextExecution > recurring.lastExecution) {
+                        if (!await setRecurringTransactionInactive(conn, organizationId, recurring)) {
+                            console.error('Could not invalidate recurring transactions that leaped over lastExecution');
+                        }
+                        break;
+                    }
+                }
             }
 
             if (!await updateRecurringTransactionNextExecution(conn, organizationId, recurring)) {
