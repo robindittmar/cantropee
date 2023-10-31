@@ -152,7 +152,7 @@ export async function insertRecurringTransaction(organizationId: string, recurri
             recurring.executionPolicy,
             JSON.stringify(recurring.executionPolicyData),
             recurring.firstExecution,
-            recurring.firstExecution,
+            recurring.firstExecution, // this is on purpose
             recurring.lastExecution,
             lookup[recurring.category] ?? 0,
             recurring.value,
