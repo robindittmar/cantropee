@@ -168,6 +168,8 @@ create table recurring_transactions
     organization_uuid     binary(16)                               not null,
     insert_timestamp      datetime   default NOW()                 not null,
     active                boolean    default true                  not null,
+    ref_uuid              binary(16)                               null,
+    current_version_uuid  binary(16)                               null,
     timezone              varchar(64)                              not null,
     execution_policy      integer                                  not null,
     execution_policy_data json                                     null,
@@ -189,6 +191,10 @@ create index recurring_transactions_uuid_organization_uuid_idx
     on recurring_transactions (uuid, organization_uuid);
 create index recurring_transactions_next_execution_active_idx
     on recurring_transactions (organization_uuid, next_execution, active);
+create index recurring_transactions_ref_uuid_idx
+    on transactions (organization_uuid, ref_uuid);
+create index recurring_transactions_current_version_uuid_idx
+    on transactions (organization_uuid, current_version_uuid);
 
 create table recurring_booked
 (
