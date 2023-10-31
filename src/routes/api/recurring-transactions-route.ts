@@ -1,6 +1,7 @@
 import express from 'express';
 import {getSessionFromReq} from "../../services/session-service";
 import {
+    deleteRecurringTransaction,
     getRecurringTransactions,
     insertRecurringTransaction,
     RecurringTransaction
@@ -60,6 +61,24 @@ recurringTransactionsRouter.post('/', async (req, res, next) => {
         }
 
         res.send({success: result !== 0});
+    } catch (err) {
+        next(err);
+    }
+});
+
+recurringTransactionsRouter.delete('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})/', async (req, res, next) => {
+    try {
+        const session = getSessionFromReq(req);
+
+        let {cascade} = req.query;
+        if (typeof cascade !== 'string') {
+            throw new Error('cascade must be provided in query');
+        }
+
+        let id = req.params['id'] ?? '0';
+        const result = await deleteRecurringTransaction(session.organizationId, id, cascade === 'true');
+
+        res.send({success: result});
     } catch (err) {
         next(err);
     }

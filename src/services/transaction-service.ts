@@ -529,7 +529,7 @@ export async function updateTransaction(organizationId: string, t: Transaction):
             throw new Error('UpdateTransaction: Could not set transaction active=false');
         }
 
-        const [_updatePreviousVerions] = await conn.query<ResultSetHeader>(
+        const [_updatePreviousVersions] = await conn.query<ResultSetHeader>(
             'UPDATE cantropee.transactions' +
             ' SET current_version_uuid=UUID_TO_BIN(?)' +
             ' WHERE current_version_uuid=UUID_TO_BIN(?)',

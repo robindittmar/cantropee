@@ -50,9 +50,7 @@ export const validateSession = async (req: Request, res: Response, next: NextFun
         redirectToLogin(req, res);
         return;
     }
-
-    // if ()
-
+    
     let validUntil = new Date();
     validUntil.setHours(validUntil.getHours() + 1);
     if ((validUntil.getTime() - session.validUntil.getTime()) > 900000/*only after 15 mins*/) {

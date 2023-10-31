@@ -269,6 +269,44 @@ export async function bookPendingRecurringTransactions(organizationId: string): 
     return newIds;
 }
 
+export async function deleteRecurringTransaction(organizationId: string, recurringTransactionId: string, cascade: boolean = false): Promise<boolean> {
+    const conn = await getConnection();
+    try {
+        await conn.query('START TRANSACTION');
+
+        if (cascade) {
+            const [_] = await conn.query<ResultSetHeader>(
+                'UPDATE cantropee.transactions SET active = false' +
+                ' WHERE organization_uuid = UUID_TO_BIN(?)' +
+                ' AND uuid IN (' +
+                '   SELECT transaction_uuid FROM cantropee.recurring_booked WHERE recurring_uuid = UUID_TO_BIN(?))',
+                [organizationId, recurringTransactionId]
+            );
+        }
+
+        const [updateRecurring] = await conn.query<ResultSetHeader>(
+            'UPDATE cantropee.recurring_transactions SET active = false' +
+            ' WHERE uuid = UUID_TO_BIN(?)' +
+            ' AND organization_uuid = UUID_TO_BIN(?)',
+            [recurringTransactionId, organizationId]
+        );
+
+        if (updateRecurring.affectedRows !== 1) {
+            await conn.query('ROLLBACK');
+            return false;
+        }
+
+        await conn.query('COMMIT')
+        return true;
+    } catch {
+        await conn.query('ROLLBACK');
+    } finally {
+        conn.release();
+    }
+
+    return false;
+}
+
 export async function updateTransactionLink(conn: PoolConnection, oldId: string, newId: string): Promise<boolean> {
     let [result] = await conn.query<ResultSetHeader>(
         'UPDATE cantropee.recurring_booked' +
