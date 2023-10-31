@@ -282,7 +282,7 @@ export async function getTransactionHistory(organizationId: string, transactionI
         ' FROM cantropee.transactions' +
         ' WHERE current_version_uuid = UUID_TO_BIN(?)' +
         ' AND organization_uuid = UUID_TO_BIN(?)' +
-        ' ORDER BY insert_timestamp DESC',
+        ' ORDER BY insert_timestamp DESC, id DESC',
         [transactionId, organizationId]
     );
     conn.release();
@@ -387,7 +387,7 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
         ' AND active = true' +
         ' AND effective_timestamp >= ?' +
         ' AND effective_timestamp < ?' +
-        ' ORDER BY effective_timestamp ' + sortDirection +
+        ' ORDER BY effective_timestamp ' + sortDirection + ', id ' + sortDirection +
         ' LIMIT ?,?',
         [organizationId, effectiveFrom, effectiveTo, start, count]
     );
