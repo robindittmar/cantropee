@@ -232,6 +232,15 @@ export async function getBalance(organizationId: string, effectiveFrom: Date, ef
     };
 }
 
+export async function invalidateAllBalances(conn: PoolConnection, organizationId: string): Promise<boolean> {
+    const [result] = await conn.query<ResultSetHeader>(
+        'UPDATE cantropee.balance SET dirty=true WHERE organization_uuid = UUID_TO_BIN(?)',
+        [organizationId]
+    );
+
+    return result.warningStatus === 0;
+}
+
 export async function getTransactionByDatabaseId(conn: PoolConnection, organizationId: string, id: number): Promise<Transaction> {
     const [result] = await conn.query<TransactionModel[]>(
         'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, insert_timestamp,' +

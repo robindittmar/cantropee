@@ -1,7 +1,7 @@
 import {getConnection} from "../core/database";
 import {RecurringTransactionModel} from "../models/recurring-transaction-model";
 import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
-import {getTransactionByDatabaseId, insertTransaction, Transaction} from "./transaction-service";
+import {getTransactionByDatabaseId, insertTransaction, invalidateAllBalances, Transaction} from "./transaction-service";
 import {ResultSetHeader} from "mysql2";
 import moment from 'moment-timezone';
 import {PoolConnection} from "mysql2/promise";
@@ -282,6 +282,11 @@ export async function deleteRecurringTransaction(organizationId: string, recurri
                 '   SELECT transaction_uuid FROM cantropee.recurring_booked WHERE recurring_uuid = UUID_TO_BIN(?))',
                 [organizationId, recurringTransactionId]
             );
+
+            if (!(await invalidateAllBalances(conn, organizationId))) {
+                await conn.query('ROLLBACK');
+                return false;
+            }
         }
 
         const [updateRecurring] = await conn.query<ResultSetHeader>(
