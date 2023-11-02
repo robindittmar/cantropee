@@ -10,7 +10,7 @@ usersRouter.get('/me', async (req, res, next) => {
         const session = getSessionFromReq(req);
         let user = {
             ...session.user,
-            currentOrganizationId: session.organization
+            currentOrganization: session.organization
         };
 
         res.send(user);
