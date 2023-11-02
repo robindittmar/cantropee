@@ -14,6 +14,7 @@ import {categoriesRouter} from "./routes/api/categories-route";
 import {usersRouter} from "./routes/api/users-route";
 import {exportRouter} from "./routes/api/export-route";
 import {sessionRouter} from "./routes/api/session-route";
+import {housekeep} from "./services/housekeep-service";
 
 
 async function main() {
@@ -21,6 +22,8 @@ async function main() {
     console.log(`$ initializing with ${JSON.stringify(conf.parsed)}`);
 
     initDatabaseConnection();
+
+    await housekeep();
 
     const app = express();
     const port = parseInt(process.env['SERVER_PORT'] ?? '3000');

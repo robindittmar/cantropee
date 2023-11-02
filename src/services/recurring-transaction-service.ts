@@ -13,6 +13,7 @@ export enum ExecutionPolicy {
 
 export interface RecurringTransaction {
     id: string;
+    active: boolean,
     insertTimestamp: Date;
     timezone: string;
     executionPolicy: ExecutionPolicy;
@@ -50,7 +51,7 @@ const makeTransactionFromRecurring = (recurring: RecurringTransaction): Transact
 export async function getRecurringTransaction(organizationId: string, id: string): Promise<RecurringTransaction> {
     const conn = await getConnection();
     const [dbRecurring] = await conn.query<RecurringTransactionModel[]>(
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid' +
+        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, active,' +
         '       insert_timestamp, timezone, execution_policy, execution_policy_data, first_execution,' +
         '       next_execution, last_execution, category_id, value, value19, value7, vat19, vat7, note' +
         'FROM cantropee.recurring_transactions' +
@@ -70,6 +71,7 @@ export async function getRecurringTransaction(organizationId: string, id: string
 
     return {
         id: recurring.uuid,
+        active: recurring.active !== 0,
         insertTimestamp: recurring.insert_timestamp,
         timezone: recurring.timezone,
         executionPolicy: recurring.execution_policy,
@@ -89,20 +91,20 @@ export async function getRecurringTransaction(organizationId: string, id: string
 
 export async function getRecurringTransactions(organizationId: string, nextExecutionSmallerEqual: Date | undefined = undefined): Promise<RecurringTransaction[]> {
     const query = !!nextExecutionSmallerEqual ?
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
+        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, active,' +
         '       insert_timestamp, timezone, execution_policy, execution_policy_data, first_execution,' +
         '       next_execution, last_execution, category_id, value, value19, value7, vat19, vat7, note' +
         ' FROM cantropee.recurring_transactions' +
         ' WHERE organization_uuid = UUID_TO_BIN(?)' +
         ' AND next_execution <= ?' +
-        ' AND active = true'
+        ' ORDER BY active DESC, id DESC'
         :
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
+        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, active,' +
         '       insert_timestamp, timezone, execution_policy, execution_policy_data, first_execution,' +
         '       next_execution, last_execution, category_id, value, value19, value7, vat19, vat7, note' +
         ' FROM cantropee.recurring_transactions' +
         ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND active = true';
+        ' ORDER BY active DESC, id DESC';
 
     const conn = await getConnection();
     const [dbRecurring] = await conn.query<RecurringTransactionModel[]>(
@@ -116,6 +118,7 @@ export async function getRecurringTransactions(organizationId: string, nextExecu
     for (const recurring of dbRecurring) {
         recurringTransactions.push({
             id: recurring.uuid,
+            active: recurring.active !== 0,
             insertTimestamp: recurring.insert_timestamp,
             timezone: recurring.timezone,
             executionPolicy: recurring.execution_policy,
@@ -130,7 +133,7 @@ export async function getRecurringTransactions(organizationId: string, nextExecu
             vat19: recurring.vat19,
             vat7: recurring.vat7,
             note: recurring.note,
-        })
+        });
     }
 
     return recurringTransactions;

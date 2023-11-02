@@ -1,12 +1,12 @@
 import express from 'express';
 import {getSessionFromReq} from "../../services/session-service";
 import {
+    bookPendingRecurringTransactions,
     deleteRecurringTransaction,
     getRecurringTransactions,
     insertRecurringTransaction,
     RecurringTransaction
 } from "../../services/recurring-transaction-service";
-import {getConnection} from "../../core/database";
 
 export const recurringTransactionsRouter = express.Router();
 
@@ -29,6 +29,7 @@ recurringTransactionsRouter.post('/', async (req, res, next) => {
         let recurringReq = req.body;
         let recurring: RecurringTransaction = {
             id: '',
+            active: true,
             insertTimestamp: new Date(),
             timezone: recurringReq.timezone,
             executionPolicy: recurringReq.executionPolicy,
@@ -52,15 +53,11 @@ recurringTransactionsRouter.post('/', async (req, res, next) => {
             res.send({success: false});
         }
 
-        let result: number = 0;
-        const conn = await getConnection();
-        try {
-            result = await insertRecurringTransaction(session.organization.id, recurring);
-        } finally {
-            conn.release();
-        }
+        const result = await insertRecurringTransaction(session.organization.id, recurring);
+        const success = result !== 0;
+        const newTransactions = await bookPendingRecurringTransactions(session.organization.id);
 
-        res.send({success: result !== 0});
+        res.send({success: success, bookedTransactions: newTransactions});
     } catch (err) {
         next(err);
     }
