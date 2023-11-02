@@ -12,17 +12,10 @@ sessionRouter.put('/organization', async (req, res, next) => {
             throw new Error('Must provide organizationId to update session');
         }
         const orgId = req.body.organizationId;
-        let validOrg = false;
 
-        for (const org of session.user.organizations) {
-            if (orgId === org.id) {
-                validOrg = true;
-                break;
-            }
-        }
-
-        if (validOrg) {
-            session.organizationId = orgId;
+        const org = session.user.organizations.find(o => o.id === orgId);
+        if (org) {
+            session.organization = org;
             let result = await updateSession(session);
             if (!result) {
                 res.status(404);

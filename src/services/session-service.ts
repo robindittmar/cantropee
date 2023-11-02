@@ -1,8 +1,9 @@
+import {NextFunction, Request, Response} from "express";
+import {ResultSetHeader} from "mysql2";
 import {getConnection} from "../core/database";
 import {SessionModel} from "../models/session-model";
-import {getUserById, User} from "./user-service";
-import {ResultSetHeader} from "mysql2";
-import {NextFunction, Request, Response} from "express";
+import {User, getUserById} from "./user-service";
+import {Organization} from "./organization-service";
 
 export interface RequestWithSession extends Request {
     session?: Session;
@@ -12,7 +13,7 @@ export interface Session {
     sessionId: string;
     validUntil: Date;
     user: User;
-    organizationId: string;
+    organization: Organization;
 }
 
 let sessionCache: {
@@ -50,7 +51,7 @@ export const validateSession = async (req: Request, res: Response, next: NextFun
         redirectToLogin(req, res);
         return;
     }
-    
+
     let validUntil = new Date();
     validUntil.setHours(validUntil.getHours() + 1);
     if ((validUntil.getTime() - session.validUntil.getTime()) > 900000/*only after 15 mins*/) {
@@ -88,11 +89,17 @@ export async function getSession(sessionId: string): Promise<Session | undefined
         return undefined;
     }
     const dbSession = getSessionResult[0];
+    let user = await getUserById(dbSession.user_uuid);
+    let org = user.organizations.find((o) => o.id === dbSession.organization_uuid) ?? user.organizations[0];
+    if (!org) {
+        throw new Error('User has no organization');
+    }
+
     const session: Session = {
         sessionId: dbSession.session_id,
         validUntil: dbSession.valid_until,
         user: await getUserById(dbSession.user_uuid),
-        organizationId: dbSession.organization_uuid,
+        organization: org,
     };
     updateSessionCache(session);
 
@@ -109,7 +116,7 @@ export async function insertSession(session: Session): Promise<boolean> {
             session.sessionId,
             session.validUntil,
             session.user.id,
-            session.organizationId,
+            session.organization.id,
         ]
     );
     conn.release();
@@ -129,7 +136,7 @@ export async function updateSession(session: Session): Promise<boolean> {
         ' SET organization_uuid = UUID_TO_BIN(?)' +
         ' WHERE session_id = ?',
         [
-            session.organizationId,
+            session.organization.id,
             session.sessionId,
         ]
     );
@@ -181,7 +188,7 @@ export async function deleteSession(session: Session): Promise<boolean> {
         delete sessionCache[session.sessionId];
     }
 
-    return success
+    return success;
 }
 
 function redirectToLogin(req: Request, res: Response) {

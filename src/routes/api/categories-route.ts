@@ -9,7 +9,7 @@ categoriesRouter.get('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
 
-        const categories = await getCategories(session.organizationId);
+        const categories = await getCategories(session.organization.id);
         res.send(categories);
     } catch (err) {
         next(err);

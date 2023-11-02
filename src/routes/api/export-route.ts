@@ -10,8 +10,8 @@ exportRouter.get('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
 
-        const transactions = await getAllTransactions(session.organizationId);
-        const filename = `export-${new Date().toISOString()}-${session.organizationId}.json`;
+        const transactions = await getAllTransactions(session.organization.id);
+        const filename = `export-${new Date().toISOString()}-${session.organization.id}.json`;
 
         await fs.writeFile(`./static/${filename}`, JSON.stringify(transactions));
         res.download(`./static/${filename}`);

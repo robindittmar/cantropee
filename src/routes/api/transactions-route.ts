@@ -54,7 +54,7 @@ transactionsRouter.get('/', async (req, res, next) => {
         }
 
         let result = await getTransactions(
-            session.organizationId,
+            session.organization.id,
             effectiveFrom,
             effectiveTo,
             startInt,
@@ -72,7 +72,7 @@ transactionsRouter.get('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-
         const session = getSessionFromReq(req);
 
         let id = req.params['id'] ?? '0';
-        let result = await getTransaction(session.organizationId, id);
+        let result = await getTransaction(session.organization.id, id);
         res.send(result);
     } catch (err) {
         next(err);
@@ -84,7 +84,7 @@ transactionsRouter.get('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-
         const session = getSessionFromReq(req);
 
         let id = req.params['id'] ?? '0';
-        let result = await calcTransactionHistoryDiff(session.organizationId, id);
+        let result = await calcTransactionHistoryDiff(session.organization.id, id);
         res.send(result);
     } catch (err) {
         next(err);
@@ -122,7 +122,7 @@ transactionsRouter.post('/', async (req, res, next) => {
         let result: number = 0;
         const conn = await getConnection();
         try {
-            result = await insertTransaction(conn, session.organizationId, transaction);
+            result = await insertTransaction(conn, session.organization.id, transaction);
         } finally {
             conn.release();
         }
@@ -162,7 +162,7 @@ transactionsRouter.put('/', async (req, res, next) => {
         }
 
         try {
-            let result = await updateTransaction(session.organizationId, transaction);
+            let result = await updateTransaction(session.organization.id, transaction);
 
             res.send(result);
         } catch (err) {
@@ -190,7 +190,7 @@ transactionsRouter.get('/balance', async (req, res, next) => {
         const effectiveFrom = new Date(from);
         const effectiveTo = new Date(to);
 
-        let result = await getBalance(session.organizationId, effectiveFrom, effectiveTo);
+        let result = await getBalance(session.organization.id, effectiveFrom, effectiveTo);
         res.send(result);
     } catch (err) {
         next(err);

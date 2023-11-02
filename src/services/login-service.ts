@@ -16,11 +16,16 @@ export async function login(email: string, password: string): Promise<{
             let validUntil = new Date();
             validUntil.setHours(validUntil.getHours() + 1);
 
+            let org = user.organizations.find((o) => o.id === user.settings.defaultOrganization) ?? user.organizations[0];
+            if (!org) {
+                throw new Error('User has no organization');
+            }
+
             let session: Session = {
                 sessionId: randomUUID() + randomUUID() + randomUUID() + randomUUID(),
                 validUntil,
                 user,
-                organizationId: user.settings.defaultOrganization ?? user.organizations[0]?.id ?? ''
+                organization: org,
             };
             if (await insertSession(session)) {
                 return {

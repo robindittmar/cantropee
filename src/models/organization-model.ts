@@ -6,4 +6,5 @@ export interface OrganizationModel extends RowDataPacket {
     name: string;
     currency: string;
     insert_timestamp: Date;
+    privileges: string[];
 }

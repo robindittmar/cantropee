@@ -15,7 +15,7 @@ recurringTransactionsRouter.get('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
 
-        let result = await getRecurringTransactions(session.organizationId);
+        let result = await getRecurringTransactions(session.organization.id);
         res.send(result);
     } catch (err) {
         next(err);
@@ -55,7 +55,7 @@ recurringTransactionsRouter.post('/', async (req, res, next) => {
         let result: number = 0;
         const conn = await getConnection();
         try {
-            result = await insertRecurringTransaction(session.organizationId, recurring);
+            result = await insertRecurringTransaction(session.organization.id, recurring);
         } finally {
             conn.release();
         }
@@ -76,7 +76,7 @@ recurringTransactionsRouter.delete('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-
         }
 
         let id = req.params['id'] ?? '0';
-        const result = await deleteRecurringTransaction(session.organizationId, id, cascade === 'true');
+        const result = await deleteRecurringTransaction(session.organization.id, id, cascade === 'true');
 
         res.send({success: result});
     } catch (err) {
