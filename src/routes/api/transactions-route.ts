@@ -25,6 +25,7 @@ transactionsRouter.get('/', async (req, res, next) => {
             count,
             order,
             pending,
+            category,
         } = req.query;
         if (typeof from !== 'string') {
             throw new Error('from must be provided in query');
@@ -45,6 +46,10 @@ transactionsRouter.get('/', async (req, res, next) => {
         let effectiveTo = new Date(to);
         let reverseOrder = order === 'asc';
         const excludePending = pending === 'false';
+        let categoryFilter = undefined;
+        if (category && typeof category === 'string') {
+            categoryFilter = parseInt(category);
+        }
 
         const now = new Date();
         if (excludePending
@@ -59,7 +64,8 @@ transactionsRouter.get('/', async (req, res, next) => {
             effectiveTo,
             startInt,
             offsetInt,
-            reverseOrder
+            reverseOrder,
+            categoryFilter
         );
         res.send(result);
     } catch (err) {

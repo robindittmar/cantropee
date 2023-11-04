@@ -362,7 +362,7 @@ export async function calcTransactionHistoryDiff(organizationId: string, transac
     return result;
 }
 
-export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number, reverse: boolean): Promise<PaginatedTransactions> {
+export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number, reverse: boolean, category: number | undefined): Promise<PaginatedTransactions> {
     let result: PaginatedTransactions = {
         total: 0,
         start: start,
@@ -381,8 +381,9 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
         ' WHERE organization_uuid = UUID_TO_BIN(?)' +
         ' AND active = true' +
         ' AND effective_timestamp >= ?' +
-        ' AND effective_timestamp < ?',
-        [organizationId, effectiveFrom, effectiveTo]
+        ' AND effective_timestamp < ?' +
+        (category ? ' AND category_id=?' : ''),
+        [organizationId, effectiveFrom, effectiveTo, category]
     );
     result.total = res[0]?.count ?? -1;
 
@@ -396,9 +397,12 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
         ' AND active = true' +
         ' AND effective_timestamp >= ?' +
         ' AND effective_timestamp < ?' +
+        (category ? ' AND category_id=?' : '') +
         ' ORDER BY effective_timestamp ' + sortDirection + ', id ' + sortDirection +
         ' LIMIT ?,?',
-        [organizationId, effectiveFrom, effectiveTo, start, count]
+        category ?
+            [organizationId, effectiveFrom, effectiveTo, category, start, count] :
+            [organizationId, effectiveFrom, effectiveTo, start, count]
     );
     conn.release();
 
