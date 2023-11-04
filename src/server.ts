@@ -1,4 +1,3 @@
-import path from "path";
 import dotenv from 'dotenv';
 import logger from 'morgan';
 import express, {Request, Response, NextFunction} from 'express';
@@ -8,12 +7,12 @@ import {initDatabaseConnection} from "./core/database";
 import {loginRouter} from "./routes/login-route";
 import {logoutRouter} from "./routes/logout-route";
 import {changePasswordRouter} from "./routes/change-password-route";
-import {transactionsRouter} from "./routes/api/transactions-route";
-import {recurringTransactionsRouter} from "./routes/api/recurring-transactions-route";
-import {categoriesRouter} from "./routes/api/categories-route";
-import {usersRouter} from "./routes/api/users-route";
-import {exportRouter} from "./routes/api/export-route";
-import {sessionRouter} from "./routes/api/session-route";
+import {transactionsRouter} from "./routes/transactions-route";
+import {recurringTransactionsRouter} from "./routes/recurring-transactions-route";
+import {categoriesRouter} from "./routes/categories-route";
+import {usersRouter} from "./routes/users-route";
+import {exportRouter} from "./routes/export-route";
+import {sessionRouter} from "./routes/session-route";
 import {housekeep} from "./services/housekeep-service";
 
 
@@ -31,14 +30,12 @@ async function main() {
 
     app.use(logger(loggerFormat));
     app.use(express.json());
-    app.use(express.urlencoded({extended: true}));
     app.use(cookieParser());
     app.use(validateSession);
 
-    app.use('/', express.static(path.join(__dirname, '../static')));
-    app.use('/login', loginRouter);
-    app.use('/logout', logoutRouter);
-    app.use('/change-password', changePasswordRouter);
+    app.use('/api/login', loginRouter);
+    app.use('/api/logout', logoutRouter);
+    app.use('/api/change-password', changePasswordRouter);
     app.use('/api/categories', categoriesRouter);
     app.use('/api/transactions', transactionsRouter);
     app.use('/api/recurring', recurringTransactionsRouter);

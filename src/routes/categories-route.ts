@@ -1,6 +1,6 @@
 import express from 'express';
-import {getCategories} from "../../services/categories-service";
-import {getSessionFromReq} from "../../services/session-service";
+import {getCategories} from "../services/categories-service";
+import {getSessionFromReq} from "../services/session-service";
 
 export const categoriesRouter = express.Router();
 

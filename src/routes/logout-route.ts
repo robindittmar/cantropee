@@ -4,7 +4,7 @@ import {deleteSession, getSessionFromReq} from "../services/session-service";
 export const logoutRouter = express.Router();
 
 
-logoutRouter.get('/', async (req, res, next) => {
+logoutRouter.post('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
 
@@ -12,8 +12,11 @@ logoutRouter.get('/', async (req, res, next) => {
         if (!result) {
             res.status(404);
         }
-        res.cookie('sid', '');
-        res.redirect('/login');
+        res.cookie('sid', '', {
+            secure: true,
+            httpOnly: true,
+        });
+        res.send({success: true});
     } catch (err) {
         next(err);
     }

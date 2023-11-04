@@ -1,6 +1,6 @@
 import express from 'express';
-import {getSessionFromReq, updateSessionCache} from "../../services/session-service";
-import {updateUserSettings} from "../../services/user-service";
+import {getSessionFromReq, updateSessionCache} from "../services/session-service";
+import {updateUserSettings} from "../services/user-service";
 
 export const usersRouter = express.Router();
 

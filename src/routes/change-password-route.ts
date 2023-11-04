@@ -5,39 +5,29 @@ import {updateUserPassword} from "../services/user-service";
 export const changePasswordRouter = express.Router();
 
 
-changePasswordRouter.get('/', async (_req, res, next) => {
-    try {
-        res.sendFile('views/change-password.html', {root: process.cwd()});
-    } catch (err) {
-        next(err);
-    }
-});
-
 changePasswordRouter.post('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
 
-        if (!('password' in req.body)) {
-            throw new Error('password must be provided for changePassword');
+        const {password, confirmPassword} = req.body;
+
+        if (!password) {
+            throw new Error('password must be provided for change-password');
         }
-        if (!('confirm-password' in req.body)) {
-            throw new Error('confirm-password must be provided for changePassword');
+        if (!confirmPassword) {
+            throw new Error('confirmPassword must be provided for change-password');
         }
 
-
-        let redirectUri = '/';
-        if (typeof (req.query['redirect']) === 'string') {
-            redirectUri = req.query['redirect'];
+        if (password !== confirmPassword) {
+            throw new Error('Passwords do not match');
         }
 
         let success = await updateUserPassword(session.user, req.body.password);
-
-        if (success) {
-            res.redirect(redirectUri);
-        } else {
+        if (!success) {
             res.status(400);
-            res.send();
         }
+
+        res.send({success: success});
     } catch (err) {
         next(err);
     }

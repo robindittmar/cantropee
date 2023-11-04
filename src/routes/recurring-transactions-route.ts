@@ -1,12 +1,12 @@
 import express from 'express';
-import {getSessionFromReq} from "../../services/session-service";
+import {getSessionFromReq} from "../services/session-service";
 import {
     bookPendingRecurringTransactions,
     deleteRecurringTransaction,
     getRecurringTransactions,
     insertRecurringTransaction,
     RecurringTransaction
-} from "../../services/recurring-transaction-service";
+} from "../services/recurring-transaction-service";
 
 export const recurringTransactionsRouter = express.Router();
 

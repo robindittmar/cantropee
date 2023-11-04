@@ -7,9 +7,9 @@ import {
     getTransactions,
     insertTransaction,
     updateTransaction
-} from "../../services/transaction-service";
-import {getSessionFromReq} from "../../services/session-service";
-import {getConnection} from "../../core/database";
+} from "../services/transaction-service";
+import {getSessionFromReq} from "../services/session-service";
+import {getConnection} from "../core/database";
 
 export const transactionsRouter = express.Router();
 

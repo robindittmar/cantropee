@@ -1,6 +1,6 @@
 import express from 'express';
-import {getSessionFromReq} from "../../services/session-service";
-import {getAllTransactions} from "../../services/transaction-service";
+import {getSessionFromReq} from "../services/session-service";
+import {getAllTransactions} from "../services/transaction-service";
 import * as fs from "fs/promises";
 
 export const exportRouter = express.Router();

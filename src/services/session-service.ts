@@ -29,18 +29,14 @@ export const getSessionFromReq = (req: Request): Session => {
 }
 
 export const validateSession = async (req: Request, res: Response, next: NextFunction) => {
-    // No login required
-    const excludePaths = ['/login', '/public'];
-    for (const path of excludePaths) {
-        if (req.path.startsWith(path)) {
-            next();
-            return;
-        }
+    if (req.path === '/api/login') {
+        next();
+        return;
     }
 
     // No session cookie present
     if (!('sid' in req.cookies)) {
-        redirectToLogin(req, res);
+        unauthorized(res);
         return;
     }
 
@@ -48,7 +44,7 @@ export const validateSession = async (req: Request, res: Response, next: NextFun
     let session = await getSession(sessionId);
     // No session found
     if (session === undefined) {
-        redirectToLogin(req, res);
+        unauthorized(res);
         return;
     }
 
@@ -191,15 +187,7 @@ export async function deleteSession(session: Session): Promise<boolean> {
     return success;
 }
 
-function redirectToLogin(req: Request, res: Response) {
-    const excludePaths = ['/api', '/secure'];
-    for (const path of excludePaths) {
-        if (req.path.startsWith(path)) {
-            res.status(403);
-            res.send();
-            return;
-        }
-    }
-
-    res.redirect(`/login?redirect=${encodeURI(req.path)}`);
+function unauthorized(res: Response) {
+    res.status(401);
+    res.send({message: 'Unauthorized'});
 }

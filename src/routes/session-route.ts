@@ -1,5 +1,5 @@
 import express from 'express';
-import {getSessionFromReq, updateSession} from "../../services/session-service";
+import {getSessionFromReq, updateSession} from "../services/session-service";
 
 export const sessionRouter = express.Router();
 
