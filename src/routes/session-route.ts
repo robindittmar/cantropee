@@ -9,12 +9,12 @@ sessionRouter.put('/organization', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
 
-        const {orgId} = req.body;
-        if (!orgId) {
+        const {organizationId} = req.body;
+        if (!organizationId) {
             throw new ServerError(400, 'Field "organizationId" is missing from request body');
         }
 
-        const org = session.user.organizations.find(o => o.id === orgId);
+        const org = session.user.organizations.find(o => o.id === organizationId);
         if (org) {
             session.organization = org;
             let result = await updateSession(session);

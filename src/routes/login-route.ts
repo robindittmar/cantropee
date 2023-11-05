@@ -21,6 +21,7 @@ loginRouter.post('/', async (req, res, next) => {
             res.cookie('sid', result.sessionId, {
                 secure: true,
                 httpOnly: true,
+                sameSite: 'strict',
             });
             res.send(result);
         } else {

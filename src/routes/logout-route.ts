@@ -15,6 +15,7 @@ logoutRouter.post('/', async (req, res, next) => {
         res.cookie('sid', '', {
             secure: true,
             httpOnly: true,
+            sameSite: 'strict',
         });
         res.send({success: success});
     } catch (err) {
