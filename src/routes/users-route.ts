@@ -1,10 +1,25 @@
 import express from 'express';
 import {getSessionFromReq, updateSessionCache} from "../services/session-service";
-import {updateUserSettings} from "../services/user-service";
+import {getUsersByOrganization, updateUserSettings} from "../services/user-service";
 import {ServerError} from "../core/server-error";
+import {unauthorized} from "../core/unauthorized";
 
 export const usersRouter = express.Router();
 
+usersRouter.get('/', async (req, res, next) => {
+    try {
+        const session = getSessionFromReq(req);
+        if (!session.organization.privileges.includes('admin')) {
+            unauthorized(res);
+            return;
+        }
+
+        let result = (await getUsersByOrganization(session.organization.id));
+        res.send(result);
+    } catch (err) {
+        next(err);
+    }
+});
 
 usersRouter.get('/me', async (req, res, next) => {
     try {

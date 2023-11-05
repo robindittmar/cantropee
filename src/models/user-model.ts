@@ -13,3 +13,9 @@ export interface UserModel extends RowDataPacket {
     extra: object | null;
     insert_timestamp: Date;
 }
+
+export interface OrgUserModel extends RowDataPacket {
+    uuid: string;
+    email: string;
+    role: string;
+}

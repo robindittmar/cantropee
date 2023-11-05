@@ -1,6 +1,6 @@
 import {getConnection} from "../core/database";
 import * as bcrypt from 'bcrypt';
-import {UserModel} from "../models/user-model";
+import {OrgUserModel, UserModel} from "../models/user-model";
 import {ResultSetHeader} from "mysql2";
 import {Organization, getOrganizationsForUser} from "./organization-service";
 
@@ -17,6 +17,12 @@ export interface UserSettings {
     defaultPreviewPending: boolean;
     defaultSortingOrderAsc: boolean;
     extra: object | null;
+}
+
+export interface OrgUser {
+    id: string;
+    email: string;
+    role: string;
 }
 
 
@@ -86,6 +92,31 @@ export async function getUserByEmail(email: string): Promise<[User, string, bool
     };
 
     return [user, dbUser.password, dbUser.require_password_change !== 0];
+}
+
+export async function getUsersByOrganization(organizationId: string): Promise<OrgUser[]> {
+    const conn = await getConnection();
+    const [dbUsers] = await conn.query<OrgUserModel[]>(
+        'SELECT BIN_TO_UUID(U.uuid) AS uuid, U.email AS email, R.name AS role' +
+        ' FROM cantropee.organization_users OU' +
+        ' INNER JOIN cantropee.users U ON OU.user_uuid=U.uuid' +
+        ' INNER JOIN cantropee.roles R ON OU.role_uuid=R.uuid' +
+        ' WHERE OU.organization_uuid = UUID_TO_BIN(?)' +
+        ' ORDER BY OU.insert_timestamp DESC, OU.user_uuid',
+        [organizationId]
+    );
+    conn.release();
+
+    const orgUsers: OrgUser[] = [];
+    for (const dbUser of dbUsers) {
+        orgUsers.push({
+            id: dbUser.uuid,
+            email: dbUser.email,
+            role: dbUser.role,
+        });
+    }
+
+    return orgUsers;
 }
 
 export async function updateUserPassword(user: User, password: string): Promise<boolean> {
