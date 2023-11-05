@@ -8,15 +8,15 @@ logoutRouter.post('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
 
-        let result = await deleteSession(session);
-        if (!result) {
+        let success = await deleteSession(session);
+        if (!success) {
             res.status(404);
         }
         res.cookie('sid', '', {
             secure: true,
             httpOnly: true,
         });
-        res.send({success: true});
+        res.send({success: success});
     } catch (err) {
         next(err);
     }

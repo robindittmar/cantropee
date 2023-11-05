@@ -5,6 +5,7 @@ import {BalanceModel} from "../models/balance-model";
 import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
 import {PoolConnection} from "mysql2/promise";
 import {bookPendingRecurringTransactions, updateTransactionLink} from "./recurring-transaction-service";
+import {ServerError} from "../core/server-error";
 
 
 export interface Transaction {
@@ -273,7 +274,7 @@ export async function getTransaction(organizationId: string, id: string): Promis
     conn.release();
 
     if (result.length < 1 || result[0] === undefined) {
-        throw new Error('Transaction not found');
+        throw new ServerError(404, 'Transaction not found');
     }
 
     return modelToTransaction(result[0], await getCategoriesLookup(organizationId));
@@ -472,12 +473,12 @@ export async function getAllTransactions(organizationId: string): Promise<Transa
 export async function insertTransaction(conn: PoolConnection, organizationId: string, t: Transaction) {
     const categoriesReverseLookup = await getCategoriesReverseLookup(organizationId);
     if (!(t.category in categoriesReverseLookup)) {
-        throw new Error(`Invalid category '${t.category}'`);
+        throw new ServerError(400, `invalid category: '${t.category}'`);
     }
     const categoryId = categoriesReverseLookup[t.category];
 
     if (t.value === 0) {
-        throw new Error('Invalid amount for transaction: 0');
+        throw new ServerError(400, 'invalid amount for transaction: 0');
     }
 
     const [res] = await conn.query<ResultSetHeader>(

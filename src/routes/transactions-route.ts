@@ -10,6 +10,7 @@ import {
 } from "../services/transaction-service";
 import {getSessionFromReq} from "../services/session-service";
 import {getConnection} from "../core/database";
+import {ServerError} from "../core/server-error";
 
 export const transactionsRouter = express.Router();
 
@@ -28,16 +29,16 @@ transactionsRouter.get('/', async (req, res, next) => {
             category,
         } = req.query;
         if (typeof from !== 'string') {
-            throw new Error('from must be provided in query');
+            throw new ServerError(400, 'field "from" is missing from query');
         }
         if (typeof to !== 'string') {
-            throw new Error('to must be provided in query');
+            throw new ServerError(400, 'field "to" is missing from query');
         }
         if (typeof start !== 'string') {
-            throw new Error('start must be provided in query');
+            throw new ServerError(400, 'field "start" is missing from query');
         }
         if (typeof count !== 'string') {
-            throw new Error('count must be provided in query');
+            throw new ServerError(400, 'field "count" is missing from query');
         }
 
         const startInt = parseInt(start);
@@ -119,10 +120,7 @@ transactionsRouter.post('/', async (req, res, next) => {
         };
 
         if (transaction.note && transaction.note.length > 128) {
-            // TODO: Logging & error handling :)
-            console.error('note too long!');
-            res.status(400);
-            res.send({success: false});
+            throw new ServerError(400, 'field "note" is too long (128 characters)');
         }
 
         let result: number = 0;
@@ -161,21 +159,11 @@ transactionsRouter.put('/', async (req, res, next) => {
         };
 
         if (transaction.note && transaction.note.length > 128) {
-            // TODO: Logging & error handling :)
-            console.error('note too long!');
-            res.status(400);
-            res.send({success: false});
+            throw new ServerError(400, 'field "note" is too long (128 characters)');
         }
 
-        try {
-            let result = await updateTransaction(session.organization.id, transaction);
-
-            res.send(result);
-        } catch (err) {
-            console.log(err);
-            res.status(500);
-            res.send({success: false});
-        }
+        let result = await updateTransaction(session.organization.id, transaction);
+        res.send(result);
     } catch (err) {
         next(err);
     }
@@ -187,10 +175,10 @@ transactionsRouter.get('/balance', async (req, res, next) => {
 
         let {from, to} = req.query;
         if (typeof from !== 'string') {
-            throw new Error('from must be provided in query');
+            throw new ServerError(400, 'field "from" is missing from query');
         }
         if (typeof to !== 'string') {
-            throw new Error('to must be provided in query');
+            throw new ServerError(400, 'field "to" is missing from query');
         }
 
         const effectiveFrom = new Date(from);

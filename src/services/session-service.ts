@@ -23,7 +23,7 @@ let sessionCache: {
 export const getSessionFromReq = (req: Request): Session => {
     const session = (req as RequestWithSession).session;
     if (!session) {
-        throw new Error('Tried to get session in unsecure endpoint');
+        throw new Error('Tried to get session from within unsecure endpoint');
     }
     return session;
 }

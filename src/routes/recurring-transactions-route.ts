@@ -7,6 +7,7 @@ import {
     insertRecurringTransaction,
     RecurringTransaction
 } from "../services/recurring-transaction-service";
+import {ServerError} from "../core/server-error";
 
 export const recurringTransactionsRouter = express.Router();
 
@@ -47,10 +48,7 @@ recurringTransactionsRouter.post('/', async (req, res, next) => {
         };
 
         if (recurring.note && recurring.note.length > 128) {
-            // TODO: Logging & error handling :)
-            console.error('note too long!');
-            res.status(400);
-            res.send({success: false});
+            throw new ServerError(400, 'field "note" is too long (128 characters)');
         }
 
         const result = await insertRecurringTransaction(session.organization.id, recurring);

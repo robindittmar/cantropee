@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import logger from 'morgan';
 import express, {Request, Response, NextFunction} from 'express';
 import cookieParser from "cookie-parser";
+import {ServerError} from "./core/server-error";
 import {validateSession} from "./services/session-service";
 import {initDatabaseConnection} from "./core/database";
 import {loginRouter} from "./routes/login-route";
@@ -43,9 +44,26 @@ async function main() {
     app.use('/api/session', sessionRouter);
     app.use('/api/export', exportRouter);
 
-    app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
+        if (res.headersSent) {
+            return next(err)
+        }
+
         console.error(err);
-        res.status(500).send({code: 500, status: 'Internal Server Error'});
+        if (err instanceof ServerError) {
+            let serverError = err as ServerError;
+            res.status(serverError.statusCode).send({
+                success: false,
+                code: serverError.statusCode,
+                message: serverError.message,
+            });
+        } else {
+            res.status(500).send({
+                success: false,
+                code: 500,
+                message: 'Internal Server Error',
+            });
+        }
     });
 
     app.listen(port, () => {

@@ -1,6 +1,7 @@
 import express from 'express';
 import {getSessionFromReq, updateSessionCache} from "../services/session-service";
 import {updateUserSettings} from "../services/user-service";
+import {ServerError} from "../core/server-error";
 
 export const usersRouter = express.Router();
 
@@ -34,9 +35,7 @@ usersRouter.post('/me/settings', async (req, res, next) => {
         } else {
             session.user.settings = oldSettings;
 
-            // 400 or 500 actually
-            res.status(400);
-            res.send();
+            throw new ServerError(500, 'Could not save settings');
         }
     } catch (err) {
         next(err);
