@@ -1,7 +1,6 @@
 import {getConnection} from "../core/database";
 import {CountAllResult, TransactionModel} from "../models/transaction-model";
 import {ResultSetHeader} from "mysql2";
-import {BalanceModel} from "../models/balance-model";
 import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
 import {PoolConnection} from "mysql2/promise";
 import {bookPendingRecurringTransactions, updateTransactionLink} from "./recurring-transaction-service";
@@ -45,23 +44,6 @@ export interface PaginatedTransactions {
     data: Transaction[];
 }
 
-export interface Balance {
-    total: number;
-    vat: {
-        total: number;
-        vat19: number;
-        vat7: number;
-    }
-    pending: {
-        total: number;
-        vat: {
-            total: number;
-            vat19: number;
-            vat7: number;
-        }
-    }
-}
-
 const modelToTransaction = (t: TransactionModel, lookup: { [id: number]: string }): Transaction => {
     return {
         id: t.uuid,
@@ -92,155 +74,6 @@ const transactionsDataEqual = (a: Transaction, b: Transaction): boolean => {
         a.note === b.note
     );
 };
-
-async function recalculateBalance(organizationId: string, startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date()): Promise<BalanceModel> {
-    const conn = await getConnection();
-    const [rows] = await conn.query<TransactionModel[]>(
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
-        '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
-        '       category_id, value, value19, value7, vat19, vat7, note' +
-        ' FROM cantropee.transactions' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND active = true' +
-        ' AND effective_timestamp >= ?' +
-        ' AND effective_timestamp < ?' +
-        ' ORDER BY effective_timestamp ASC',
-        [organizationId, startingFrom, endingAt]
-    );
-
-    const now = new Date();
-    let validUntil = new Date();
-    validUntil.setHours(validUntil.getHours() + 24);
-
-    let earliestPendingTransaction: Date | undefined = undefined;
-
-    let total = 0;
-    let totalVat19 = 0;
-    let totalVat7 = 0;
-
-    let pending = 0;
-    let pendingVat19 = 0;
-    let pendingVat7 = 0;
-    for (let row of rows) {
-        const value = row.value;
-        const vat19 = row.vat19 ?? 0;
-        const vat7 = row.vat7 ?? 0;
-
-        if (row.effective_timestamp < now) {
-            total = total + value;
-            totalVat19 = totalVat19 + vat19;
-            totalVat7 = totalVat7 + vat7;
-        } else {
-            if (earliestPendingTransaction === undefined) {
-                earliestPendingTransaction = new Date(row.effective_timestamp);
-            }
-
-            pending = pending + value;
-            pendingVat19 = pendingVat19 + vat19;
-            pendingVat7 = pendingVat7 + vat7;
-        }
-    }
-
-    validUntil = earliestPendingTransaction ?? validUntil;
-    const [res] = await conn.execute<ResultSetHeader>(
-        'INSERT INTO cantropee.balance' +
-        ' (organization_uuid, effective_from, effective_to, valid_until, value, vat19, vat7, pending_value, pending_vat19, pending_vat7)' +
-        ' VALUES (UUID_TO_BIN(?),?,?,?,?,?,?,?,?,?)',
-        [
-            organizationId,
-            startingFrom,
-            endingAt,
-            validUntil,
-            total,
-            totalVat19,
-            totalVat7,
-            pending,
-            pendingVat19,
-            pendingVat7,
-        ]
-    );
-    conn.release();
-
-    if (res.affectedRows < 1) {
-        throw new Error('Could not write balance');
-    }
-
-    return {
-        constructor: {name: "RowDataPacket"},
-        id: res.insertId,
-        organization_uuid: organizationId,
-        insert_timestamp: new Date(),
-        effective_from: startingFrom,
-        effective_to: endingAt,
-        value: total,
-        vat19: totalVat19,
-        vat7: totalVat7,
-        pending_value: pending,
-        pending_vat19: pendingVat19,
-        pending_vat7: pendingVat7,
-        valid_until: validUntil,
-        dirty: 0
-    };
-}
-
-export async function getBalance(organizationId: string, effectiveFrom: Date, effectiveTo: Date): Promise<Balance> {
-    const conn = await getConnection();
-    let [rows] = await conn.query<BalanceModel[]>(
-        'SELECT id, BIN_TO_UUID(organization_uuid) AS organization_uuid, insert_timestamp,' +
-        '       effective_from, effective_to, value, vat19, vat7, pending_value,' +
-        '       pending_vat19, pending_vat7, valid_until, dirty' +
-        ' FROM cantropee.balance' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND dirty = false' +
-        ' AND valid_until > NOW()' +
-        ' AND effective_from = ?' +
-        ' AND effective_to = ?' +
-        ' ORDER BY id DESC' +
-        ' LIMIT 1',
-        [organizationId, effectiveFrom, effectiveTo]
-    );
-    conn.release();
-
-    if (rows.length < 1) {
-        rows = [await recalculateBalance(organizationId, effectiveFrom, effectiveTo)];
-    }
-
-    let total = rows[0]?.value ?? 0;
-    let vat19 = rows[0]?.vat19 ?? 0;
-    let vat7 = rows[0]?.vat7 ?? 0;
-    let vatTotal = vat19 + vat7;
-
-    let pendingTotal = rows[0]?.pending_value ?? 0;
-    let pendingVat19 = rows[0]?.pending_vat19 ?? 0;
-    let pendingVat7 = rows[0]?.pending_vat7 ?? 0;
-    let pendingVatTotal = pendingVat19 + pendingVat7;
-
-    return {
-        total: total,
-        vat: {
-            total: vatTotal,
-            vat19: vat19,
-            vat7: vat7,
-        },
-        pending: {
-            total: pendingTotal,
-            vat: {
-                total: pendingVatTotal,
-                vat19: pendingVat19,
-                vat7: pendingVat7,
-            }
-        },
-    };
-}
-
-export async function invalidateAllBalances(conn: PoolConnection, organizationId: string): Promise<boolean> {
-    const [result] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.balance SET dirty=true WHERE organization_uuid = UUID_TO_BIN(?)',
-        [organizationId]
-    );
-
-    return result.warningStatus === 0;
-}
 
 export async function getTransactionByDatabaseId(conn: PoolConnection, organizationId: string, id: number): Promise<Transaction> {
     const [result] = await conn.query<TransactionModel[]>(

@@ -2,12 +2,12 @@ import express from 'express';
 import {
     Transaction,
     calcTransactionHistoryDiff,
-    getBalance,
     getTransaction,
     getTransactions,
     insertTransaction,
     updateTransaction
 } from "../services/transaction-service";
+import {getBalance} from "../services/balance-service";
 import {getSessionFromReq} from "../services/session-service";
 import {getConnection} from "../core/database";
 import {ServerError} from "../core/server-error";
@@ -173,7 +173,7 @@ transactionsRouter.get('/balance', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
 
-        let {from, to} = req.query;
+        let {from, to, category} = req.query;
         if (typeof from !== 'string') {
             throw new ServerError(400, 'field "from" is missing from query');
         }
@@ -183,8 +183,12 @@ transactionsRouter.get('/balance', async (req, res, next) => {
 
         const effectiveFrom = new Date(from);
         const effectiveTo = new Date(to);
+        let categoryFilter = undefined;
+        if (category && typeof category === 'string') {
+            categoryFilter = parseInt(category);
+        }
 
-        let result = await getBalance(session.organization.id, effectiveFrom, effectiveTo);
+        let result = await getBalance(session.organization.id, effectiveFrom, effectiveTo, categoryFilter);
         res.send(result);
     } catch (err) {
         next(err);

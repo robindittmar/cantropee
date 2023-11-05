@@ -1,7 +1,8 @@
 import {getConnection} from "../core/database";
 import {RecurringTransactionModel} from "../models/recurring-transaction-model";
 import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
-import {getTransactionByDatabaseId, insertTransaction, invalidateAllBalances, Transaction} from "./transaction-service";
+import {getTransactionByDatabaseId, insertTransaction, Transaction} from "./transaction-service";
+import {invalidateAllBalances} from "./balance-service";
 import {ResultSetHeader} from "mysql2";
 import moment from 'moment-timezone';
 import {PoolConnection} from "mysql2/promise";
