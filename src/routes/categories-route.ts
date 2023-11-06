@@ -57,11 +57,12 @@ categoriesRouter.put('/', async (req, res, next) => {
         }
 
         const category = {
-            id: 0,
+            id: id,
             name: name,
         };
         if (!await updateCategory(session.organization.id, category)) {
             serverError(res, 'Could not update category');
+            return;
         }
 
         res.send({
