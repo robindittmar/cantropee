@@ -48,9 +48,13 @@ export const validateSession = async (req: Request, res: Response, next: NextFun
         return;
     }
 
-    let validUntil = new Date();
-    validUntil.setHours(validUntil.getHours() + 1);
-    if ((validUntil.getTime() - session.validUntil.getTime()) > 900000/*only after 15 mins*/) {
+    // Only revalidate session when it will run out in less than 30 mins.
+    const now = new Date();
+    const minutesLeft = ((session.validUntil.getTime() - now.getTime()) / 60000);
+    if (minutesLeft < 30) {
+        let validUntil = now;
+        validUntil.setHours(validUntil.getHours() + 1);
+
         session.validUntil = validUntil;
         if (!await revalidateSession(session)) {
             throw new Error('Could not update session timestamp');
