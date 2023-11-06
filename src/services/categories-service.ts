@@ -1,6 +1,8 @@
 import {getConnection} from "../core/database";
 import {CategoryModel} from "../models/category-model";
 import {ResultSetHeader} from "mysql2";
+import {countTransactionsByCategory} from "./transaction-service";
+import {ServerError} from "../core/server-error";
 
 
 export interface Category {
@@ -97,6 +99,23 @@ export async function updateCategory(organizationId: string, category: Category)
         ' WHERE id = ?' +
         ' AND organization_uuid = UUID_TO_BIN(?)',
         [category.name, category.id, organizationId]
+    );
+    conn.release();
+
+    delete categoryCache[organizationId];
+    return result.affectedRows > 0;
+}
+
+export async function deleteCategory(organizationId: string, categoryId: number): Promise<boolean> {
+    const count = await countTransactionsByCategory(organizationId, categoryId);
+    if (count > 0) {
+        throw new ServerError(500, 'Cannot delete category as there are transactions associated with it');
+    }
+
+    const conn = await getConnection();
+    const [result] = await conn.query<ResultSetHeader>(
+        'DELETE FROM cantropee.categories WHERE organization_uuid = UUID_TO_BIN(?) AND id=?',
+        [organizationId, categoryId]
     );
     conn.release();
 

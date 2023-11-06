@@ -263,6 +263,19 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
     return result;
 }
 
+export async function countTransactionsByCategory(organizationId: string, categoryId: number): Promise<number> {
+    const conn = await getConnection();
+    const [result] = await conn.query<CountAllResult[]>(
+        'SELECT COUNT(id) AS count FROM cantropee.transactions' +
+        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
+        ' AND category_id = ?',
+        [organizationId, categoryId]
+    );
+    conn.release();
+
+    return result[0]?.count ?? 0;
+}
+
 export async function getAllTransactions(organizationId: string): Promise<Transaction[]> {
     let transactions: Transaction[] = [];
     const categoriesLookup = await getCategoriesLookup(organizationId);

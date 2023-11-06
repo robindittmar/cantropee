@@ -1,5 +1,5 @@
 import express from 'express';
-import {getCategories, insertCategory, updateCategory} from "../services/categories-service";
+import {deleteCategory, getCategories, insertCategory, updateCategory} from "../services/categories-service";
 import {getSessionFromReq} from "../services/session-service";
 import {badRequest, serverError} from "../core/response-helpers";
 
@@ -68,6 +68,33 @@ categoriesRouter.put('/', async (req, res, next) => {
         res.send({
             success: true,
             category: category,
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+categoriesRouter.delete('/', async (req, res, next) => {
+    try {
+        const session = getSessionFromReq(req);
+
+        const {id} = req.body;
+        if (!id) {
+            badRequest(res, 'id');
+            return;
+        }
+
+        const category = {
+            id: id,
+            name: '',
+        };
+        if (!await deleteCategory(session.organization.id, category.id)) {
+            serverError(res, 'Could not delete category');
+            return;
+        }
+
+        res.send({
+            success: true,
         });
     } catch (err) {
         next(err);
