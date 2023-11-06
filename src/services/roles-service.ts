@@ -27,6 +27,7 @@ export async function getRoles(organizationId: string): Promise<UserRole[]> {
         ' WHERE organization_uuid=UUID_TO_BIN(?)',
         [organizationId]
     );
+    conn.release();
 
     let roles: UserRole[] = [];
     for (const role of rows) {
@@ -44,6 +45,7 @@ export async function insertRole(organizationId: string, role: UserRole): Promis
         ' VALUES (UUID_TO_BIN(?), ?, ?)',
         [organizationId, role.name, role.privileges]
     );
+    conn.release();
 
     return result.insertId;
 }
@@ -56,6 +58,7 @@ export async function updateRole(organizationId: string, role: UserRole): Promis
         ' WHERE cantropee.roles.organization_uuid = UUID_TO_BIN(?) AND id = ?',
         [role.name, role.privileges, organizationId, role.id]
     );
+    conn.release();
 
     return result.affectedRows > 0;
 }
