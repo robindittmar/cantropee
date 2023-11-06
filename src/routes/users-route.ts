@@ -3,13 +3,14 @@ import {getSessionFromReq, updateSessionCache} from "../services/session-service
 import {getUsersByOrganization, updateUserSettings} from "../services/user-service";
 import {ServerError} from "../core/server-error";
 import {unauthorized} from "../core/response-helpers";
+import {Privileges} from "../core/privileges";
 
 export const usersRouter = express.Router();
 
 usersRouter.get('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
-        if (!session.organization.privileges.includes('admin')) {
+        if (!session.organization.privileges.includes(Privileges.Admin)) {
             unauthorized(res);
             return;
         }

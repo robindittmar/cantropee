@@ -3,6 +3,7 @@ import * as bcrypt from 'bcrypt';
 import {OrgUserModel, UserModel} from "../models/user-model";
 import {ResultSetHeader} from "mysql2";
 import {Organization, getOrganizationsForUser} from "./organization-service";
+import {CountAllResult} from "../models/transaction-model";
 
 export interface User {
     id: string;
@@ -117,6 +118,21 @@ export async function getUsersByOrganization(organizationId: string): Promise<Or
     }
 
     return orgUsers;
+}
+
+export async function countUsersByRole(organizationId: string, roleId: string): Promise<number> {
+    const conn = await getConnection();
+    const [result] = await conn.query<CountAllResult[]>(
+        'SELECT COUNT(U.id) AS count FROM cantropee.organization_users OU' +
+        ' INNER JOIN cantropee.users U ON OU.user_uuid=U.uuid' +
+        ' INNER JOIN cantropee.roles R ON OU.role_uuid=R.uuid' +
+        ' WHERE OU.organization_uuid=UUID_TO_BIN(?)' +
+        ' AND R.uuid=UUID_TO_BIN(?)' +
+        [organizationId, roleId]
+    );
+    conn.release();
+
+    return result[0]?.count ?? 0;
 }
 
 export async function updateUserPassword(user: User, password: string): Promise<boolean> {

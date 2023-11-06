@@ -5,16 +5,17 @@ import cookieParser from "cookie-parser";
 import {ServerError} from "./core/server-error";
 import {validateSession} from "./services/session-service";
 import {initDatabaseConnection} from "./core/database";
+import {housekeep} from "./services/housekeep-service";
 import {loginRouter} from "./routes/login-route";
 import {logoutRouter} from "./routes/logout-route";
 import {changePasswordRouter} from "./routes/change-password-route";
 import {transactionsRouter} from "./routes/transactions-route";
 import {recurringTransactionsRouter} from "./routes/recurring-transactions-route";
 import {categoriesRouter} from "./routes/categories-route";
+import {rolesRouter} from "./routes/roles-route";
 import {usersRouter} from "./routes/users-route";
 import {exportRouter} from "./routes/export-route";
 import {sessionRouter} from "./routes/session-route";
-import {housekeep} from "./services/housekeep-service";
 
 
 async function main() {
@@ -40,6 +41,7 @@ async function main() {
     app.use('/api/categories', categoriesRouter);
     app.use('/api/transactions', transactionsRouter);
     app.use('/api/recurring', recurringTransactionsRouter);
+    app.use('/api/roles', rolesRouter);
     app.use('/api/users', usersRouter);
     app.use('/api/session', sessionRouter);
     app.use('/api/export', exportRouter);
