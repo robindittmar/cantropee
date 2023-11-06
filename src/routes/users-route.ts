@@ -2,7 +2,7 @@ import express from 'express';
 import {getSessionFromReq, updateSessionCache} from "../services/session-service";
 import {getUsersByOrganization, updateUserSettings} from "../services/user-service";
 import {ServerError} from "../core/server-error";
-import {unauthorized} from "../core/unauthorized";
+import {unauthorized} from "../core/response-helpers";
 
 export const usersRouter = express.Router();
 

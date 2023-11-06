@@ -78,7 +78,7 @@ export async function getCategoriesReverseLookup(organizationId: string): Promis
     return lookup;
 }
 
-export async function insertCategory(organizationId: string, category: Category): Promise<boolean> {
+export async function insertCategory(organizationId: string, category: Category): Promise<number> {
     const conn = await getConnection();
     const [result] = await conn.query<ResultSetHeader>(
         'INSERT INTO cantropee.categories (organization_uuid, name) VALUES (UUID_TO_BIN(?),?)',
@@ -87,7 +87,7 @@ export async function insertCategory(organizationId: string, category: Category)
     conn.release();
 
     delete categoryCache[organizationId];
-    return result.affectedRows > 0;
+    return result.insertId;
 }
 
 export async function updateCategory(organizationId: string, category: Category): Promise<boolean> {
