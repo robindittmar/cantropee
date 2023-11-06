@@ -1,22 +1,28 @@
 import express from 'express';
 import {login} from "../services/login-service";
-import {ServerError} from "../core/server-error";
+import {badRequest} from "../core/response-helpers";
 
 export const loginRouter = express.Router();
 
 
 loginRouter.post('/', async (req, res, next) => {
     try {
-        const {email, password} = req.body;
+        const {email, password, permanentSession} = req.body;
 
-        if (!email) {
-            throw new ServerError(400, 'field "email" is missing in request body');
+        if (!email || typeof email !== 'string') {
+            badRequest(res, 'email');
+            return;
         }
-        if (!password) {
-            throw new ServerError(400, 'field "password" is missing in request body');
+        if (!password || typeof password !== 'string') {
+            badRequest(res, 'password');
+            return;
+        }
+        if (permanentSession && typeof permanentSession !== 'boolean') {
+            badRequest(res, 'permanentSession');
+            return;
         }
 
-        let result = await login(email, password);
+        let result = await login(email, password, permanentSession ?? false);
         if (result.success) {
             res.cookie('sid', result.sessionId, {
                 secure: true,

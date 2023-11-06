@@ -4,7 +4,7 @@ import {getUserByEmail} from "./user-service";
 import {Session, insertSession} from "./session-service";
 
 
-export async function login(email: string, password: string): Promise<{
+export async function login(email: string, password: string, permanentSession: boolean = false): Promise<{
     success: boolean,
     sessionId: string,
     changePassword: boolean
@@ -14,7 +14,11 @@ export async function login(email: string, password: string): Promise<{
 
         if (await bcrypt.compare(password, hash)) {
             let validUntil = new Date();
-            validUntil.setHours(validUntil.getHours() + 1);
+            if (permanentSession) {
+                validUntil.setFullYear(validUntil.getFullYear() + 1);
+            } else {
+                validUntil.setHours(validUntil.getHours() + 1);
+            }
 
             let org = user.organizations.find((o) => o.id === user.settings.defaultOrganization) ?? user.organizations[0];
             if (!org) {
