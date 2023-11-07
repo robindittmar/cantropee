@@ -52,6 +52,7 @@ export const validateSession = async (req: Request, res: Response, next: NextFun
     const now = new Date();
     const minutesLeft = ((session.validUntil.getTime() - now.getTime()) / 60000);
     if (minutesLeft < 30) {
+        // TODO: Permanent sessions should actually be increased by 1 year
         let validUntil = now;
         validUntil.setHours(validUntil.getHours() + 1);
 

@@ -204,7 +204,6 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
         data: []
     };
 
-    // TODO: Yeah, maybe not here :D
     await bookPendingRecurringTransactions(organizationId);
 
     const categoriesLookup = await getCategoriesLookup(organizationId);
