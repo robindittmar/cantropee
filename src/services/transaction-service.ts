@@ -361,6 +361,23 @@ export async function insertTransaction(conn: PoolConnection, organizationId: st
     return res.insertId;
 }
 
+async function updatePreviousVersions(conn: PoolConnection, oldId: string, newId: string) {
+    const [updateLastVersion] = await conn.query<ResultSetHeader>(
+        'UPDATE cantropee.transactions SET active=false, current_version_uuid=UUID_TO_BIN(?) WHERE uuid=UUID_TO_BIN(?)',
+        [newId, oldId]
+    );
+    if (updateLastVersion.affectedRows !== 1) {
+        throw new Error('UpdateTransaction: Could not set transaction active=false');
+    }
+
+    const [_updatePreviousVersions] = await conn.query<ResultSetHeader>(
+        'UPDATE cantropee.transactions' +
+        ' SET current_version_uuid=UUID_TO_BIN(?)' +
+        ' WHERE current_version_uuid=UUID_TO_BIN(?)',
+        [newId, oldId]
+    );
+}
+
 export async function updateTransaction(organizationId: string, t: Transaction): Promise<{ id: string }> {
     let oldId = t.id;
     let oldTransaction = await getTransaction(organizationId, oldId);
@@ -379,21 +396,7 @@ export async function updateTransaction(organizationId: string, t: Transaction):
         let newTransaction = await getTransactionByDatabaseId(conn, organizationId, id);
         newId = newTransaction.id;
 
-        const [updateLastVersion] = await conn.query<ResultSetHeader>(
-            'UPDATE cantropee.transactions SET active=false, current_version_uuid=UUID_TO_BIN(?) WHERE uuid=UUID_TO_BIN(?)',
-            [newId, oldId]
-        );
-        if (updateLastVersion.affectedRows !== 1) {
-            await conn.query('ROLLBACK');
-            throw new Error('UpdateTransaction: Could not set transaction active=false');
-        }
-
-        const [_updatePreviousVersions] = await conn.query<ResultSetHeader>(
-            'UPDATE cantropee.transactions' +
-            ' SET current_version_uuid=UUID_TO_BIN(?)' +
-            ' WHERE current_version_uuid=UUID_TO_BIN(?)',
-            [newId, oldId]
-        );
+        await updatePreviousVersions(conn, oldId, newId);
 
         // Ultimately this should be an event -- "transactions has updated";
         // which recurring transactions subscribe to.
