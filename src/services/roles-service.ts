@@ -43,7 +43,7 @@ export async function insertRole(organizationId: string, role: UserRole): Promis
         'INSERT INTO cantropee.roles' +
         ' (organization_uuid, name, privileges)' +
         ' VALUES (UUID_TO_BIN(?), ?, ?)',
-        [organizationId, role.name, role.privileges]
+        [organizationId, role.name, JSON.stringify(role.privileges)]
     );
     conn.release();
 
@@ -55,8 +55,8 @@ export async function updateRole(organizationId: string, role: UserRole): Promis
     const [result] = await conn.query<ResultSetHeader>(
         'UPDATE cantropee.roles' +
         ' SET name = ?, privileges = ?' +
-        ' WHERE cantropee.roles.organization_uuid = UUID_TO_BIN(?) AND id = ?',
-        [role.name, role.privileges, organizationId, role.id]
+        ' WHERE cantropee.roles.organization_uuid = UUID_TO_BIN(?) AND uuid = UUID_TO_BIN(?)',
+        [role.name, JSON.stringify(role.privileges), organizationId, role.id]
     );
     conn.release();
 

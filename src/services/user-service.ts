@@ -127,7 +127,7 @@ export async function countUsersByRole(organizationId: string, roleId: string): 
         ' INNER JOIN cantropee.users U ON OU.user_uuid=U.uuid' +
         ' INNER JOIN cantropee.roles R ON OU.role_uuid=R.uuid' +
         ' WHERE OU.organization_uuid=UUID_TO_BIN(?)' +
-        ' AND R.uuid=UUID_TO_BIN(?)' +
+        ' AND R.uuid=UUID_TO_BIN(?)',
         [organizationId, roleId]
     );
     conn.release();
