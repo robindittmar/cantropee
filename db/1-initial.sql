@@ -12,6 +12,7 @@ create table organizations
     insert_timestamp datetime   default NOW()                 not null,
     name             varchar(256)                             not null,
     currency         varchar(16)                              not null,
+    uses_taxes       boolean                                  not null,
 
     constraint organizations_pk
         primary key (id)

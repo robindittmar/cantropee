@@ -4,6 +4,7 @@ import {getConnection} from "../core/database";
 import {SessionModel} from "../models/session-model";
 import {User, getUserById} from "./user-service";
 import {Organization} from "./organization-service";
+import {unauthorized} from "../core/response-helpers";
 
 export interface RequestWithSession extends Request {
     session?: Session;
@@ -99,7 +100,7 @@ export async function getSession(sessionId: string): Promise<Session | undefined
     const session: Session = {
         sessionId: dbSession.session_id,
         validUntil: dbSession.valid_until,
-        user: await getUserById(dbSession.user_uuid),
+        user: user,
         organization: org,
     };
     updateSessionCache(session);
@@ -190,9 +191,4 @@ export async function deleteSession(session: Session): Promise<boolean> {
     }
 
     return success;
-}
-
-function unauthorized(res: Response) {
-    res.status(401);
-    res.send({message: 'Unauthorized'});
 }

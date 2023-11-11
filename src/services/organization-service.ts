@@ -6,6 +6,7 @@ export interface Organization {
     id: string;
     name: string;
     currency: string;
+    usesTaxes: boolean;
     privileges: string[];
 }
 
@@ -14,7 +15,8 @@ export async function getOrganizationsForUser(userId: string): Promise<Organizat
 
     const conn = await getConnection();
     const [dbUserOrgs] = await conn.query<OrganizationModel[]>(
-        'SELECT BIN_TO_UUID(O.uuid) AS uuid, O.name AS name, O.currency AS currency, O.insert_timestamp AS insert_timestamp, R.privileges AS privileges' +
+        'SELECT BIN_TO_UUID(O.uuid) AS uuid, O.name AS name, O.currency AS currency, O.uses_taxes AS uses_taxes,' +
+        '       O.insert_timestamp AS insert_timestamp, R.privileges AS privileges' +
         ' FROM cantropee.organization_users OU' +
         ' INNER JOIN cantropee.organizations O ON OU.organization_uuid=O.uuid' +
         ' INNER JOIN cantropee.roles R ON OU.role_uuid=R.uuid' +
@@ -28,6 +30,7 @@ export async function getOrganizationsForUser(userId: string): Promise<Organizat
             id: dbUserOrg.uuid,
             name: dbUserOrg.name,
             currency: dbUserOrg.currency,
+            usesTaxes: dbUserOrg.uses_taxes !== 0,
             privileges: dbUserOrg.privileges,
         });
     }
