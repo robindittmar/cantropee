@@ -209,7 +209,7 @@ const leapToNextExecution = (recurring: RecurringTransaction): Date => {
     return current.utc().toDate();
 };
 
-export async function bookPendingRecurringTransactions(organizationId: string, previewCount: number): Promise<string[]> {
+export async function bookPendingRecurringTransactions(organizationId: string, _previewCount: number): Promise<string[]> {
     let newIds: string[] = [];
 
     const processTransaction = async (recurring: RecurringTransaction): Promise<string | undefined> => {
