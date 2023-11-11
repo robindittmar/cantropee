@@ -1,7 +1,7 @@
 import {getConnection} from "../core/database";
 import {CountAllResult, TransactionModel} from "../models/transaction-model";
 import {ResultSetHeader} from "mysql2";
-import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
+import {getCategories, getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
 import {PoolConnection} from "mysql2/promise";
 import {bookPendingRecurringTransactions, updateTransactionLink} from "./recurring-transaction-service";
 import {ServerError} from "../core/server-error";
@@ -196,7 +196,7 @@ export async function calcTransactionHistoryDiff(organizationId: string, transac
     return result;
 }
 
-export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number, reverse: boolean, category: number | undefined): Promise<PaginatedTransactions> {
+export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number, reverse: boolean, category: number | undefined, notes: string | undefined): Promise<PaginatedTransactions> {
     let result: PaginatedTransactions = {
         total: 0,
         start: start,
@@ -205,6 +205,13 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
     };
 
     await bookPendingRecurringTransactions(organizationId);
+
+    let categories: number[];
+    if (category) {
+        categories = [category];
+    } else {
+        categories = (await getCategories(organizationId)).map(c => c.id);
+    }
 
     const categoriesLookup = await getCategoriesLookup(organizationId);
 
@@ -215,8 +222,9 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
         ' AND active = true' +
         ' AND effective_timestamp >= ?' +
         ' AND effective_timestamp < ?' +
-        (category ? ' AND category_id=?' : ''),
-        [organizationId, effectiveFrom, effectiveTo, category]
+        ' AND category_id IN (?)' +
+        (notes ? ' AND note LIKE ?' : ''),
+        [organizationId, effectiveFrom, effectiveTo, categories, notes ? `%${notes}%` : undefined]
     );
     result.total = res[0]?.count ?? -1;
 
@@ -230,12 +238,13 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
         ' AND active = true' +
         ' AND effective_timestamp >= ?' +
         ' AND effective_timestamp < ?' +
-        (category ? ' AND category_id=?' : '') +
+        ' AND category_id IN (?)' +
+        (notes ? ' AND note LIKE ?' : '') +
         ' ORDER BY effective_timestamp ' + sortDirection + ', id ' + sortDirection +
         ' LIMIT ?,?',
-        category ?
-            [organizationId, effectiveFrom, effectiveTo, category, start, count] :
-            [organizationId, effectiveFrom, effectiveTo, start, count]
+        notes ?
+            [organizationId, effectiveFrom, effectiveTo, categories, `%${notes}%`, start, count] :
+            [organizationId, effectiveFrom, effectiveTo, categories, start, count]
     );
     conn.release();
 

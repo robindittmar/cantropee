@@ -48,21 +48,67 @@ const modelToBalance = (model: BalanceModel): Balance => {
     };
 };
 
-async function calculateBalance(organizationId: string, startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date(), categoryId: number | undefined): Promise<Balance> {
+async function calculateBalance(organizationId: string, startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date(), categoryId: number | undefined, note: string | undefined): Promise<Balance> {
+    let rows: TransactionModel[] = [];
+
     const conn = await getConnection();
-    const [rows] = await conn.query<TransactionModel[]>(
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
-        '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
-        '       category_id, value, value19, value7, vat19, vat7, note' +
-        ' FROM cantropee.transactions' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND active = true' +
-        ' AND effective_timestamp >= ?' +
-        ' AND effective_timestamp < ?' +
-        (categoryId ? ' AND category_id = ?' : '') +
-        ' ORDER BY effective_timestamp ASC',
-        [organizationId, startingFrom, endingAt, categoryId]
-    );
+    if (categoryId && note) {
+        [rows] = await conn.execute<TransactionModel[]>(
+            'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
+            '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
+            '       category_id, value, value19, value7, vat19, vat7, note' +
+            ' FROM cantropee.transactions' +
+            ' WHERE organization_uuid = UUID_TO_BIN(?)' +
+            ' AND active = true' +
+            ' AND effective_timestamp >= ?' +
+            ' AND effective_timestamp < ?' +
+            ' AND category_id IN (?)' +
+            ' AND note LIKE ?' +
+            ' ORDER BY effective_timestamp ASC',
+            [organizationId, startingFrom, endingAt, categoryId, `%${note}%`]
+        );
+    } else if (categoryId) {
+        [rows] = await conn.execute<TransactionModel[]>(
+            'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
+            '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
+            '       category_id, value, value19, value7, vat19, vat7, note' +
+            ' FROM cantropee.transactions' +
+            ' WHERE organization_uuid = UUID_TO_BIN(?)' +
+            ' AND active = true' +
+            ' AND effective_timestamp >= ?' +
+            ' AND effective_timestamp < ?' +
+            ' AND category_id IN (?)' +
+            ' ORDER BY effective_timestamp ASC',
+            [organizationId, startingFrom, endingAt, categoryId]
+        );
+    } else if (note) {
+        [rows] = await conn.execute<TransactionModel[]>(
+            'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
+            '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
+            '       category_id, value, value19, value7, vat19, vat7, note' +
+            ' FROM cantropee.transactions' +
+            ' WHERE organization_uuid = UUID_TO_BIN(?)' +
+            ' AND active = true' +
+            ' AND effective_timestamp >= ?' +
+            ' AND effective_timestamp < ?' +
+            ' AND note LIKE ?' +
+            ' ORDER BY effective_timestamp ASC',
+            [organizationId, startingFrom, endingAt, `%${note}%`]
+        );
+    } else {
+        [rows] = await conn.execute<TransactionModel[]>(
+            'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
+            '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
+            '       category_id, value, value19, value7, vat19, vat7, note' +
+            ' FROM cantropee.transactions' +
+            ' WHERE organization_uuid = UUID_TO_BIN(?)' +
+            ' AND active = true' +
+            ' AND effective_timestamp >= ?' +
+            ' AND effective_timestamp < ?' +
+            ' ORDER BY effective_timestamp ASC',
+            [organizationId, startingFrom, endingAt]
+        );
+    }
     conn.release();
 
     const now = new Date();
@@ -148,11 +194,11 @@ async function insertBalance(organizationId: string, balance: Balance): Promise<
     return result.insertId;
 }
 
-export async function getBalance(organizationId: string, effectiveFrom: Date, effectiveTo: Date, categoryId: number | undefined): Promise<Balance> {
+export async function getBalance(organizationId: string, effectiveFrom: Date, effectiveTo: Date, categoryId: number | undefined, note: string | undefined): Promise<Balance> {
     let model: BalanceModel | undefined = undefined;
 
-    // We do not cache balances over categories
-    if (!categoryId) {
+    // We do not cache filtered balances
+    if (!categoryId && !note) {
         const conn = await getConnection();
         let [rows] = await conn.query<BalanceModel[]>(
             'SELECT id, BIN_TO_UUID(organization_uuid) AS organization_uuid, insert_timestamp,' +
@@ -177,10 +223,10 @@ export async function getBalance(organizationId: string, effectiveFrom: Date, ef
     if (model !== undefined) {
         balance = modelToBalance(model);
     } else {
-        balance = await calculateBalance(organizationId, effectiveFrom, effectiveTo, categoryId);
+        balance = await calculateBalance(organizationId, effectiveFrom, effectiveTo, categoryId, note);
 
-        // We do not cache balances over categories
-        if (!categoryId) {
+        // We do not cache filtered balances
+        if (!categoryId && !note) {
             await insertBalance(organizationId, balance);
         }
     }

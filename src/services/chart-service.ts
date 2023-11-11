@@ -17,6 +17,7 @@ export async function getChart(organizationId: string) {
         100000000,
         true,
         undefined,
+        undefined,
     );
 
     let values: ChartData = {};

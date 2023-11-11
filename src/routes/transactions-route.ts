@@ -27,6 +27,7 @@ transactionsRouter.get('/', async (req, res, next) => {
             order,
             pending,
             category,
+            note,
         } = req.query;
         if (typeof from !== 'string') {
             throw new ServerError(400, 'field "from" is missing from query');
@@ -39,6 +40,9 @@ transactionsRouter.get('/', async (req, res, next) => {
         }
         if (typeof count !== 'string') {
             throw new ServerError(400, 'field "count" is missing from query');
+        }
+        if (note && typeof note !== 'string') {
+            throw new ServerError(400, 'field "note" must be a string');
         }
 
         const startInt = parseInt(start);
@@ -66,7 +70,8 @@ transactionsRouter.get('/', async (req, res, next) => {
             startInt,
             offsetInt,
             reverseOrder,
-            categoryFilter
+            categoryFilter,
+            note
         );
         res.send(result);
     } catch (err) {
@@ -173,12 +178,15 @@ transactionsRouter.get('/balance', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
 
-        let {from, to, category} = req.query;
+        let {from, to, category, note} = req.query;
         if (typeof from !== 'string') {
             throw new ServerError(400, 'field "from" is missing from query');
         }
         if (typeof to !== 'string') {
             throw new ServerError(400, 'field "to" is missing from query');
+        }
+        if (note && typeof note !== 'string') {
+            throw new ServerError(400, 'field "note" must be a string');
         }
 
         const effectiveFrom = new Date(from);
@@ -188,7 +196,7 @@ transactionsRouter.get('/balance', async (req, res, next) => {
             categoryFilter = parseInt(category);
         }
 
-        let result = await getBalance(session.organization.id, effectiveFrom, effectiveTo, categoryFilter);
+        let result = await getBalance(session.organization.id, effectiveFrom, effectiveTo, categoryFilter, note);
         res.send(result);
     } catch (err) {
         next(err);
