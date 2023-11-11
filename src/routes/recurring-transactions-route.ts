@@ -3,6 +3,7 @@ import {getSessionFromReq} from "../services/session-service";
 import {
     bookPendingRecurringTransactions,
     deleteRecurringTransaction,
+    ensureRecurringPrebooked, getRecurringTransactionByDatabaseId,
     getRecurringTransactions,
     insertRecurringTransaction,
     RecurringTransaction
@@ -53,9 +54,12 @@ recurringTransactionsRouter.post('/', async (req, res, next) => {
 
         const result = await insertRecurringTransaction(session.organization.id, recurring);
         const success = result !== 0;
-        const newTransactions = await bookPendingRecurringTransactions(session.organization.id, 3); // TODO: "preview_recurring_count"
+        const newRecurring = await getRecurringTransactionByDatabaseId(session.organization.id, result);
+        let newTransactions = await bookPendingRecurringTransactions(session.organization.id, 3); // TODO: "preview_recurring_count"
 
-        res.send({success: success, bookedTransactions: newTransactions});
+        newTransactions = newTransactions.concat(await ensureRecurringPrebooked(session.organization.id, newRecurring, 3));
+
+        res.send({success: success, recurring: newRecurring, bookedTransactions: newTransactions});
     } catch (err) {
         next(err);
     }

@@ -49,6 +49,73 @@ const makeTransactionFromRecurring = (recurring: RecurringTransaction): Transact
     };
 }
 
+const bookTransactionFromRecurring = async (conn: PoolConnection, organizationId: string, recurring: RecurringTransaction): Promise<string | undefined> => {
+    let t = makeTransactionFromRecurring(recurring);
+
+    await conn.query('START TRANSACTION');
+    let transactionId = await insertTransaction(conn, organizationId, t);
+    if (transactionId === 0) {
+        await conn.query('ROLLBACK');
+        console.error('Error writing transaction, rolled back.' + t);
+        return undefined;
+    }
+
+    let transaction = await getTransactionByDatabaseId(conn, organizationId, transactionId);
+
+    let [insertLink] = await conn.execute<ResultSetHeader>(
+        'INSERT INTO cantropee.recurring_booked (recurring_uuid, transaction_uuid)' +
+        ' VALUES (UUID_TO_BIN(?),UUID_TO_BIN(?))',
+        [recurring.id, transaction.id]
+    );
+    if (insertLink.affectedRows !== 1) {
+        await conn.query('ROLLBACK');
+        console.error('Error writing link for recurring transaction, rolled back.' + recurring);
+        return undefined;
+    }
+
+    await conn.query('COMMIT');
+    return transaction.id;
+};
+
+export async function getRecurringTransactionByDatabaseId(organizationId: string, id: number): Promise<RecurringTransaction> {
+    const conn = await getConnection();
+    const [result] = await conn.query<RecurringTransactionModel[]>(
+        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, active,' +
+        '       insert_timestamp, timezone, execution_policy, execution_policy_data, first_execution,' +
+        '       next_execution, last_execution, category_id, value, value19, value7, vat19, vat7, note' +
+        ' FROM cantropee.recurring_transactions' +
+        ' WHERE id = ?',
+        [id]
+    );
+    conn.release();
+
+    if (result.length < 1 || result[0] === undefined) {
+        throw new Error('Transaction not found');
+    }
+
+    const categoriesLookup = await getCategoriesLookup(organizationId);
+    const recurring = result[0];
+    return {
+        id: recurring.uuid,
+        active: recurring.active !== 0,
+        insertTimestamp: recurring.insert_timestamp,
+        timezone: recurring.timezone,
+        executionPolicy: recurring.execution_policy,
+        executionPolicyData: recurring.execution_policy_data ?? {},
+        firstExecution: recurring.first_execution,
+        nextExecution: recurring.next_execution,
+        lastExecution: recurring.last_execution,
+        category: categoriesLookup[recurring.category_id] ?? '[ERROR]',
+        value: recurring.value,
+        value19: recurring.value19,
+        value7: recurring.value7,
+        vat19: recurring.vat19,
+        vat7: recurring.vat7,
+        note: recurring.note,
+    };
+}
+
+
 export async function getRecurringTransaction(organizationId: string, id: string): Promise<RecurringTransaction> {
     const conn = await getConnection();
     const [dbRecurring] = await conn.query<RecurringTransactionModel[]>(
@@ -209,36 +276,8 @@ const leapToNextExecution = (recurring: RecurringTransaction): Date => {
     return current.utc().toDate();
 };
 
-export async function bookPendingRecurringTransactions(organizationId: string, _previewCount: number): Promise<string[]> {
+export async function bookPendingRecurringTransactions(organizationId: string, previewCount: number): Promise<string[]> {
     let newIds: string[] = [];
-
-    const processTransaction = async (recurring: RecurringTransaction): Promise<string | undefined> => {
-        let t = makeTransactionFromRecurring(recurring);
-
-        await conn.query('START TRANSACTION');
-        let transactionId = await insertTransaction(conn, organizationId, t);
-        if (transactionId === 0) {
-            await conn.query('ROLLBACK');
-            console.error('Error writing transaction, rolled back.' + t);
-            return undefined;
-        }
-
-        let transaction = await getTransactionByDatabaseId(conn, organizationId, transactionId);
-
-        let [insertLink] = await conn.execute<ResultSetHeader>(
-            'INSERT INTO cantropee.recurring_booked (recurring_uuid, transaction_uuid)' +
-            ' VALUES (UUID_TO_BIN(?),UUID_TO_BIN(?))',
-            [recurring.id, transaction.id]
-        );
-        if (insertLink.affectedRows !== 1) {
-            await conn.query('ROLLBACK');
-            console.error('Error writing link for recurring transaction, rolled back.' + recurring);
-            return undefined;
-        }
-
-        await conn.query('COMMIT');
-        return transaction.id;
-    };
 
     const now = new Date();
     let pending = await getRecurringTransactions(organizationId, now);
@@ -246,57 +285,89 @@ export async function bookPendingRecurringTransactions(organizationId: string, _
     const conn = await getConnection();
     try {
         for (const recurring of pending) {
-            while (recurring.nextExecution <= now) {
-                const id = await processTransaction(recurring);
-                if (!id) {
-                    break;
-                }
+            const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(conn, recurring));
 
-                newIds.push(id);
-                recurring.nextExecution = leapToNextExecution(recurring);
-                if (recurring.lastExecution) {
-                    if (recurring.nextExecution > recurring.lastExecution) {
-                        if (!await setRecurringTransactionInactive(conn, organizationId, recurring)) {
-                            console.error('Could not invalidate recurring transactions that leaped over lastExecution');
-                        }
-                        break;
-                    }
-                }
-            }
+            newIds = newIds.concat(await bookTransactions(conn, organizationId, recurring, pendingTransactionDates));
 
             if (!await updateRecurringTransactionNextExecution(conn, organizationId, recurring)) {
                 console.error('Uh oh, could not update recurring transaction: ' + JSON.stringify(recurring));
             }
 
-            // if (previewCount > 0) {
-            //     const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(conn, recurring)).map(d => d.getTime());
-            //
-            //     if (pendingTransactionDates.length === previewCount) {
-            //         continue;
-            //     }
-            //
-            //     for (let i = 0; i < previewCount; i++) {
-            //         if (pendingTransactionDates.includes(recurring.nextExecution.getTime())) {
-            //             continue;
-            //         }
-            //
-            //         const id = await processTransaction(recurring);
-            //         if (!id) {
-            //             break;
-            //         }
-            //
-            //         newIds.push(id);
-            //         recurring.nextExecution = leapToNextExecution(recurring);
-            //         if (recurring.lastExecution) {
-            //             if (recurring.nextExecution > recurring.lastExecution) {
-            //                 break;
-            //             }
-            //         }
-            //     }
-            // }
+            newIds = newIds.concat(await prebookTransactions(conn, organizationId, recurring, pendingTransactionDates, previewCount));
         }
     } finally {
         conn.release();
+    }
+
+    return newIds;
+}
+
+export async function ensureRecurringPrebooked(organizationId: string, recurring: RecurringTransaction, previewCount: number): Promise<string[]> {
+    const conn = await getConnection();
+    const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(conn, recurring));
+    return prebookTransactions(conn, organizationId, recurring, pendingTransactionDates, previewCount);
+}
+
+export async function bookTransactions(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction, prebookedDates: Date[]): Promise<string[]> {
+    let newIds: string[] = [];
+    const now = new Date();
+
+    const prebookedTimes = prebookedDates.map(d => d.getTime());
+
+    while (recurring.nextExecution <= now) {
+        if (prebookedTimes.includes(recurring.nextExecution.getTime())) {
+            continue;
+        }
+
+        const id = await bookTransactionFromRecurring(conn, organizationId, recurring);
+        if (!id) {
+            break;
+        }
+
+        newIds.push(id);
+        recurring.nextExecution = leapToNextExecution(recurring);
+        if (recurring.lastExecution) {
+            if (recurring.nextExecution > recurring.lastExecution) {
+                if (!await setRecurringTransactionInactive(conn, organizationId, recurring)) {
+                    console.error('Could not invalidate recurring transactions that leaped over lastExecution');
+                }
+                break;
+            }
+        }
+    }
+
+    return newIds;
+}
+
+export async function prebookTransactions(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction, prebookedDates: Date[], previewCount: number): Promise<string[]> {
+    let newIds: string[] = [];
+
+    if (previewCount > 0) {
+
+        if (prebookedDates.length === previewCount) {
+            return [];
+        }
+
+        const prebookedTimes = prebookedDates.map(d => d.getTime());
+
+        for (let i = 0; i < previewCount; i++) {
+            if (prebookedTimes.includes(recurring.nextExecution.getTime())) {
+                continue;
+            }
+
+            const id = await bookTransactionFromRecurring(conn, organizationId, recurring);
+            if (!id) {
+                break;
+            }
+
+            newIds.push(id);
+            recurring.nextExecution = leapToNextExecution(recurring);
+            if (recurring.lastExecution) {
+                if (recurring.nextExecution > recurring.lastExecution) {
+                    break;
+                }
+            }
+        }
     }
 
     return newIds;
