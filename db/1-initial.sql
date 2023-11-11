@@ -7,12 +7,13 @@ start transaction;
 
 create table organizations
 (
-    id               BIGINT auto_increment                    not null,
-    uuid             binary(16) default (UUID_TO_BIN(UUID())) not null,
-    insert_timestamp datetime   default NOW()                 not null,
-    name             varchar(256)                             not null,
-    currency         varchar(16)                              not null,
-    uses_taxes       boolean                                  not null,
+    id                      BIGINT auto_increment                    not null,
+    uuid                    binary(16) default (UUID_TO_BIN(UUID())) not null,
+    insert_timestamp        datetime   default NOW()                 not null,
+    name                    varchar(256)                             not null,
+    currency                varchar(16)                              not null,
+    uses_taxes              boolean                                  not null,
+    preview_recurring_count integer    default 3                     not null,
 
     constraint organizations_pk
         primary key (id)
