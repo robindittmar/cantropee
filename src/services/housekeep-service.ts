@@ -4,12 +4,15 @@ import {getConnection} from "../core/database";
 
 
 export async function housekeep() {
-    console.log('$ running housekeeping tasks...');
+    console.time('$ housekeeping');
     const conn = await getConnection();
     try {
         await deleteOutdatedSessions(conn);
         await deleteDirtyBalances(conn);
-        console.log('$ housekeeping done');
+        console.timeEnd('$ housekeeping');
+    } catch (err) {
+        console.timeEnd('$ housekeeping');
+        console.error(err);
     } finally {
         conn.release();
     }
