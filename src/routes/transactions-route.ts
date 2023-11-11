@@ -71,7 +71,8 @@ transactionsRouter.get('/', async (req, res, next) => {
             offsetInt,
             reverseOrder,
             categoryFilter,
-            note
+            note,
+            session.organization.previewRecurringCount,
         );
         res.send(result);
     } catch (err) {

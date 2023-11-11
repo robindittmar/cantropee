@@ -73,8 +73,8 @@ INSERT INTO cantropee.categories (id, organization_uuid, name)
 VALUES (4, UUID_TO_BIN('6ba780d2-7026-11ee-bc40-0242ac110002'), 'Lohnzahlung');
 
 # 2nd org
-INSERT INTO cantropee.organizations (uuid, name, currency, uses_taxes)
-VALUES (UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'), 'affen kiste', 'EUR', false);
+INSERT INTO cantropee.organizations (uuid, name, currency, uses_taxes, preview_recurring_count)
+VALUES (UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'), 'affen kiste', 'EUR', false, 12);
 
 INSERT INTO cantropee.roles (uuid, organization_uuid, name, privileges)
 VALUES (UUID_TO_BIN('51f9af4b-72b9-11ee-b507-0242ac110002'), UUID_TO_BIN('3781e1e4-72b7-11ee-b507-0242ac110002'),

@@ -196,7 +196,7 @@ export async function calcTransactionHistoryDiff(organizationId: string, transac
     return result;
 }
 
-export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number, reverse: boolean, category: number | undefined, notes: string | undefined): Promise<PaginatedTransactions> {
+export async function getTransactions(organizationId: string, effectiveFrom: Date, effectiveTo: Date, start: number, count: number, reverse: boolean, category: number | undefined, notes: string | undefined, previewCount: number): Promise<PaginatedTransactions> {
     let result: PaginatedTransactions = {
         total: 0,
         start: start,
@@ -204,8 +204,7 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
         data: []
     };
 
-    // TODO: Organization provides "preview_recurring_count"
-    await bookPendingRecurringTransactions(organizationId, 3);
+    await bookPendingRecurringTransactions(organizationId, previewCount);
 
     let categories: number[];
     if (category) {
