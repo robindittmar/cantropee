@@ -204,7 +204,8 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
         data: []
     };
 
-    await bookPendingRecurringTransactions(organizationId);
+    // TODO: Organization provides "preview_recurring_count"
+    await bookPendingRecurringTransactions(organizationId, 3);
 
     let categories: number[];
     if (category) {

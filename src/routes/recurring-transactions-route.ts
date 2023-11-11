@@ -53,7 +53,7 @@ recurringTransactionsRouter.post('/', async (req, res, next) => {
 
         const result = await insertRecurringTransaction(session.organization.id, recurring);
         const success = result !== 0;
-        const newTransactions = await bookPendingRecurringTransactions(session.organization.id);
+        const newTransactions = await bookPendingRecurringTransactions(session.organization.id, 3); // TODO: "preview_recurring_count"
 
         res.send({success: success, bookedTransactions: newTransactions});
     } catch (err) {

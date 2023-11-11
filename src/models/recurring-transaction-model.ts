@@ -20,3 +20,7 @@ export interface RecurringTransactionModel extends RowDataPacket {
     vat7: number | undefined;
     note: string | undefined;
 }
+
+export interface RecurringTransactionLinkEffectiveDate extends RowDataPacket {
+    effective_timestamp: Date;
+}
