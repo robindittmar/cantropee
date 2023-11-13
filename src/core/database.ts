@@ -16,6 +16,7 @@ export function initDatabaseConnection() {
         charset: 'utf8',
         database: 'cantropee',
         timezone: 'Z',
+        enableKeepAlive: true,
     });
 }
 
