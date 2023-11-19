@@ -1,9 +1,10 @@
 import {BalanceModel} from "../models/balance-model";
-import {getConnection} from "../core/database";
+import {AppDataSource, getConnection} from "../core/database";
 import {TransactionModel} from "../models/transaction-model";
 import {ResultSetHeader} from "mysql2";
 import {PoolConnection} from "mysql2/promise";
 import {ServerError} from "../core/server-error";
+import {MoreThan} from "typeorm";
 
 
 export interface Balance {
@@ -168,59 +169,46 @@ async function calculateBalance(organizationId: string, startingFrom: Date = new
 }
 
 async function insertBalance(organizationId: string, balance: Balance): Promise<number> {
-    const conn = await getConnection();
-    const [result] = await conn.query<ResultSetHeader>(
-        'INSERT INTO cantropee.balance' +
-        ' (organization_uuid, effective_from, effective_to, valid_until, value, vat19, vat7, pending_value, pending_vat19, pending_vat7)' +
-        ' VALUES (UUID_TO_BIN(?),?,?,?,?,?,?,?,?,?)',
-        [
-            organizationId,
-            balance.effectiveFrom,
-            balance.effectiveTo,
-            balance.validUntil,
-            balance.total,
-            balance.vat.vat19,
-            balance.vat.vat7,
-            balance.pending.total,
-            balance.pending.vat.vat19,
-            balance.pending.vat.vat7,
-        ]
-    );
-    conn.release();
+    const model = new BalanceModel();
+    model.organization_uuid = organizationId;
+    model.effective_from = balance.effectiveFrom;
+    model.effective_to = balance.effectiveTo;
+    model.valid_until = balance.validUntil;
+    model.value = balance.total;
+    model.vat19 = balance.vat.vat19;
+    model.vat7 = balance.vat.vat7;
+    model.pending_value = balance.pending.total;
+    model.pending_vat19 = balance.pending.vat.vat19;
+    model.pending_vat7 = balance.pending.vat.vat7;
+    await AppDataSource.manager.save(model);
 
-    if (result.insertId === 0) {
+    if (model.id === 0) {
         throw new ServerError(500, 'Could not write balance');
     }
-    return result.insertId;
+    return model.id;
 }
 
 export async function getBalance(organizationId: string, effectiveFrom: Date, effectiveTo: Date, categoryId: number | undefined, note: string | undefined): Promise<Balance> {
-    let model: BalanceModel | undefined = undefined;
+    let model: BalanceModel | null = null;
 
     // We do not cache filtered balances
     if (!categoryId && !note) {
-        const conn = await getConnection();
-        let [rows] = await conn.query<BalanceModel[]>(
-            'SELECT id, BIN_TO_UUID(organization_uuid) AS organization_uuid, insert_timestamp,' +
-            '       effective_from, effective_to, value, vat19, vat7, pending_value,' +
-            '       pending_vat19, pending_vat7, valid_until, dirty' +
-            ' FROM cantropee.balance' +
-            ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-            ' AND dirty = false' +
-            ' AND valid_until > NOW()' +
-            ' AND effective_from = ?' +
-            ' AND effective_to = ?' +
-            ' ORDER BY id DESC' +
-            ' LIMIT 1',
-            [organizationId, effectiveFrom, effectiveTo]
-        );
-        conn.release();
-
-        model = rows[0];
+        model = await AppDataSource.manager.findOne(BalanceModel, {
+            where: {
+                organization_uuid: organizationId,
+                dirty: 0,
+                valid_until: MoreThan(new Date()),
+                effective_from: effectiveFrom,
+                effective_to: effectiveTo
+            },
+            order: {
+                id: 'DESC',
+            },
+        });
     }
 
     let balance: Balance;
-    if (model !== undefined) {
+    if (model !== null) {
         balance = modelToBalance(model);
     } else {
         balance = await calculateBalance(organizationId, effectiveFrom, effectiveTo, categoryId, note);

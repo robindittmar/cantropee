@@ -1,5 +1,7 @@
 import * as mysql from 'mysql2/promise';
 import {RowDataPacket} from "mysql2/promise";
+import {DataSource} from "typeorm";
+import {BalanceModel} from "../models/balance-model";
 
 let mysqlConnectionPool: mysql.Pool;
 
@@ -23,3 +25,17 @@ export function initDatabaseConnection() {
 export async function getConnection() {
     return await mysqlConnectionPool.getConnection();
 }
+
+
+export const AppDataSource: DataSource = new DataSource({
+    type: 'mysql',
+    host: process.env['NODE_ENV'] === 'development' ? 'localhost' : 'mysql',
+    port: 3306,
+    username: 'root',
+    password: 'cantropee',
+    database: 'cantropee',
+    logging: true,
+    entities: [BalanceModel],
+    migrations: [],
+    subscribers: [],
+});
