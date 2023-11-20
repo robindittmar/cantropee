@@ -1,6 +1,5 @@
-import {getConnection} from "../core/database";
+import {AppDataSource} from "../core/database";
 import {CategoryModel} from "../models/category-model";
-import {ResultSetHeader} from "mysql2";
 import {countTransactionsByCategory} from "./transaction-service";
 import {ServerError} from "../core/server-error";
 
@@ -34,17 +33,16 @@ export async function getCategories(organizationId: string): Promise<Category[]>
         return categories;
     }
 
-    const conn = await getConnection();
-    const [result] = await conn.query<CategoryModel[]>(
-        'SELECT id, name FROM cantropee.categories WHERE organization_uuid = UUID_TO_BIN(?)',
-        [organizationId]
-    );
-    conn.release();
+    const models = await AppDataSource.manager.find(CategoryModel, {
+        where: {
+            organization_uuid: organizationId
+        }
+    });
 
-    for (const category of result) {
+    for (const model of models) {
         categories.push({
-            id: category.id,
-            name: category.name,
+            id: model.id,
+            name: model.name,
         });
     }
 
@@ -81,29 +79,24 @@ export async function getCategoriesReverseLookup(organizationId: string): Promis
 }
 
 export async function insertCategory(organizationId: string, category: Category): Promise<number> {
-    const conn = await getConnection();
-    const [result] = await conn.query<ResultSetHeader>(
-        'INSERT INTO cantropee.categories (organization_uuid, name) VALUES (UUID_TO_BIN(?),?)',
-        [organizationId, category.name]
-    );
-    conn.release();
+    const model = new CategoryModel();
+    model.organization_uuid = organizationId;
+    model.name = category.name;
+    await AppDataSource.manager.save(model);
 
     delete categoryCache[organizationId];
-    return result.insertId;
+    return model.id;
 }
 
 export async function updateCategory(organizationId: string, category: Category): Promise<boolean> {
-    const conn = await getConnection();
-    const [result] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.categories SET name = ?' +
-        ' WHERE id = ?' +
-        ' AND organization_uuid = UUID_TO_BIN(?)',
-        [category.name, category.id, organizationId]
-    );
-    conn.release();
+    const model = new CategoryModel();
+    model.id = category.id;
+    model.name = category.name;
+    model.organization_uuid = organizationId;
+    await AppDataSource.manager.save(model);
 
     delete categoryCache[organizationId];
-    return result.affectedRows > 0;
+    return true;
 }
 
 export async function deleteCategory(organizationId: string, categoryId: number): Promise<boolean> {
@@ -112,13 +105,11 @@ export async function deleteCategory(organizationId: string, categoryId: number)
         throw new ServerError(500, 'Cannot delete category as there are transactions associated with it');
     }
 
-    const conn = await getConnection();
-    const [result] = await conn.query<ResultSetHeader>(
-        'DELETE FROM cantropee.categories WHERE organization_uuid = UUID_TO_BIN(?) AND id=?',
-        [organizationId, categoryId]
-    );
-    conn.release();
+    const model = new CategoryModel();
+    model.id = categoryId;
+    model.organization_uuid = organizationId;
+    await AppDataSource.manager.remove(model);
 
     delete categoryCache[organizationId];
-    return result.affectedRows > 0;
+    return true;
 }

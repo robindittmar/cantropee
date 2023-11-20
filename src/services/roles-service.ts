@@ -1,6 +1,5 @@
-import {getConnection} from "../core/database";
+import {AppDataSource} from "../core/database";
 import {RoleModel} from "../models/role-model";
-import {ResultSetHeader} from "mysql2";
 import {ServerError} from "../core/server-error";
 import {countUsersByRole} from "./user-service";
 
@@ -19,15 +18,11 @@ const modelToRole = (model: RoleModel): UserRole => {
 };
 
 export async function getRoles(organizationId: string): Promise<UserRole[]> {
-    const conn = await getConnection();
-    const [rows] = await conn.query<RoleModel[]>(
-        'SELECT id, BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
-        '       insert_timestamp, name, privileges' +
-        ' FROM cantropee.roles' +
-        ' WHERE organization_uuid=UUID_TO_BIN(?)',
-        [organizationId]
-    );
-    conn.release();
+    const rows = await AppDataSource.manager.find(RoleModel, {
+        where: {
+            organization_uuid: organizationId,
+        }
+    });
 
     let roles: UserRole[] = [];
     for (const role of rows) {
@@ -38,29 +33,24 @@ export async function getRoles(organizationId: string): Promise<UserRole[]> {
 }
 
 export async function insertRole(organizationId: string, role: UserRole): Promise<number> {
-    const conn = await getConnection();
-    const [result] = await conn.query<ResultSetHeader>(
-        'INSERT INTO cantropee.roles' +
-        ' (organization_uuid, name, privileges)' +
-        ' VALUES (UUID_TO_BIN(?), ?, ?)',
-        [organizationId, role.name, JSON.stringify(role.privileges)]
-    );
-    conn.release();
+    const model = new RoleModel();
+    model.organization_uuid = organizationId;
+    model.name = role.name;
+    model.privileges = role.privileges;
+    await AppDataSource.manager.save(model);
 
-    return result.insertId;
+    return model.id;
 }
 
 export async function updateRole(organizationId: string, role: UserRole): Promise<boolean> {
-    const conn = await getConnection();
-    const [result] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.roles' +
-        ' SET name = ?, privileges = ?' +
-        ' WHERE cantropee.roles.organization_uuid = UUID_TO_BIN(?) AND uuid = UUID_TO_BIN(?)',
-        [role.name, JSON.stringify(role.privileges), organizationId, role.id]
-    );
-    conn.release();
+    const model = new RoleModel();
+    model.uuid = role.id;
+    model.organization_uuid = organizationId;
+    model.name = role.name;
+    model.privileges = role.privileges;
+    await AppDataSource.manager.save(model);
 
-    return result.affectedRows > 0;
+    return true;
 }
 
 export async function deleteRole(organizationId: string, roleId: string): Promise<boolean> {
@@ -69,13 +59,11 @@ export async function deleteRole(organizationId: string, roleId: string): Promis
         throw new ServerError(500, 'Cannot delete role as there are users associated with it');
     }
 
-    const conn = await getConnection();
-    const [result] = await conn.query<ResultSetHeader>(
-        'DELETE FROM cantropee.roles WHERE organization_uuid = UUID_TO_BIN(?) AND uuid=UUID_TO_BIN(?)',
-        [organizationId, roleId]
-    );
-    conn.release();
+    const model = new RoleModel();
+    model.uuid = roleId;
+    model.organization_uuid = organizationId;
+    await AppDataSource.manager.remove(model);
 
-    return result.affectedRows > 0;
+    return true;
 }
 

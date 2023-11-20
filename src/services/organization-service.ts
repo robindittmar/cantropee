@@ -1,5 +1,5 @@
-import {getConnection} from "../core/database";
-import {OrganizationModel} from "../models/organization-model";
+import {AppDataSource} from "../core/database";
+import {OrganizationUserModel} from "../models/organization-user-model";
 
 
 export interface Organization {
@@ -14,27 +14,24 @@ export interface Organization {
 export async function getOrganizationsForUser(userId: string): Promise<Organization[]> {
     let organizations: Organization[] = [];
 
-    const conn = await getConnection();
-    const [dbUserOrgs] = await conn.query<OrganizationModel[]>(
-        'SELECT BIN_TO_UUID(O.uuid) AS uuid, O.name AS name, O.currency AS currency, O.uses_taxes AS uses_taxes,' +
-        '       O.preview_recurring_count AS preview_recurring_count, O.insert_timestamp AS insert_timestamp,' +
-        '       R.privileges AS privileges' +
-        ' FROM cantropee.organization_users OU' +
-        ' INNER JOIN cantropee.organizations O ON OU.organization_uuid=O.uuid' +
-        ' INNER JOIN cantropee.roles R ON OU.role_uuid=R.uuid' +
-        ' WHERE user_uuid = UUID_TO_BIN(?)',
-        [userId]
-    );
-    conn.release();
+    const result = await AppDataSource.manager.find(OrganizationUserModel, {
+        relations: {
+            organization: true,
+            role: true,
+        },
+        where: {
+            user_uuid: userId,
+        },
+    });
 
-    for (const dbUserOrg of dbUserOrgs) {
+    for (const model of result) {
         organizations.push({
-            id: dbUserOrg.uuid,
-            name: dbUserOrg.name,
-            currency: dbUserOrg.currency,
-            usesTaxes: dbUserOrg.uses_taxes !== 0,
-            previewRecurringCount: dbUserOrg.preview_recurring_count,
-            privileges: dbUserOrg.privileges,
+            id: model.organization.uuid,
+            name: model.organization.name,
+            currency: model.organization.currency,
+            usesTaxes: model.organization.uses_taxes !== 0,
+            previewRecurringCount: model.organization.preview_recurring_count,
+            privileges: model.role.privileges,
         });
     }
 

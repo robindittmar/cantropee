@@ -1,4 +1,4 @@
-import {Column, Entity, PrimaryGeneratedColumn} from "typeorm";
+import {Column, Entity, PrimaryColumn, PrimaryGeneratedColumn} from "typeorm";
 import {TransformUuid} from "../core/transform";
 
 
@@ -9,11 +9,10 @@ export class BalanceModel {
     @PrimaryGeneratedColumn()
     id!: number;
 
-    @Column({
+    @PrimaryColumn({
         type: 'binary',
         length: 16,
         transformer: TransformUuid,
-        default: () => '(UUID_TO_BIN(UUID()))',
     })
     organization_uuid!: string;
 

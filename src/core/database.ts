@@ -2,6 +2,10 @@ import * as mysql from 'mysql2/promise';
 import {RowDataPacket} from "mysql2/promise";
 import {DataSource} from "typeorm";
 import {BalanceModel} from "../models/balance-model";
+import {CategoryModel} from "../models/category-model";
+import {OrganizationModel} from "../models/organization-model";
+import {OrganizationUserModel} from "../models/organization-user-model";
+import {RoleModel} from "../models/role-model";
 
 let mysqlConnectionPool: mysql.Pool;
 
@@ -34,8 +38,14 @@ export const AppDataSource: DataSource = new DataSource({
     username: 'root',
     password: 'cantropee',
     database: 'cantropee',
-    logging: true,
-    entities: [BalanceModel],
+    logging: process.env['NODE_ENV'] === 'development',
+    entities: [
+        BalanceModel,
+        CategoryModel,
+        OrganizationModel,
+        OrganizationUserModel,
+        RoleModel
+    ],
     migrations: [],
     subscribers: [],
 });
