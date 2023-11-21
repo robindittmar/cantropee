@@ -1,10 +1,33 @@
-import {RowDataPacket} from 'mysql2/promise';
+import {Column, Entity, PrimaryColumn} from "typeorm";
+import {TransformUuid} from "../core/transform";
 
-export interface SessionModel extends RowDataPacket {
-    id: number;
-    insert_timestamp: Date;
-    valid_until: Date;
-    session_id: string;
-    user_uuid: string;
-    organization_uuid: string;
+@Entity({
+    name: 'sessions'
+})
+export class SessionModel {
+    @Column()
+    id!: number;
+
+    @Column()
+    insert_timestamp!: Date;
+
+    @Column()
+    valid_until!: Date;
+
+    @PrimaryColumn()
+    session_id!: string;
+
+    @Column({
+        type: 'binary',
+        length: 16,
+        transformer: TransformUuid,
+    })
+    user_uuid!: string;
+
+    @Column({
+        type: 'binary',
+        length: 16,
+        transformer: TransformUuid,
+    })
+    organization_uuid!: string;
 }

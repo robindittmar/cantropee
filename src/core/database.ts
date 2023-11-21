@@ -6,6 +6,9 @@ import {CategoryModel} from "../models/category-model";
 import {OrganizationModel} from "../models/organization-model";
 import {OrganizationUserModel} from "../models/organization-user-model";
 import {RoleModel} from "../models/role-model";
+import {UserModel} from "../models/user-model";
+import {UserSettingsModel} from "../models/user-settings-model";
+import {SessionModel} from "../models/session-model";
 
 let mysqlConnectionPool: mysql.Pool;
 
@@ -16,8 +19,8 @@ export interface ResultUUID extends RowDataPacket {
 export function initDatabaseConnection() {
     mysqlConnectionPool = mysql.createPool({
         host: process.env['NODE_ENV'] === 'development' ? 'localhost' : 'mysql',
-        user: 'root',
-        password: 'cantropee',
+        user: 'ctp_svc_usr',
+        password: 'vmV55V4E7GF4wD^bD#x*Rd4ruR!HXn*a',
         port: 3306,
         charset: 'utf8',
         database: 'cantropee',
@@ -44,7 +47,10 @@ export const AppDataSource: DataSource = new DataSource({
         CategoryModel,
         OrganizationModel,
         OrganizationUserModel,
-        RoleModel
+        RoleModel,
+        SessionModel,
+        UserModel,
+        UserSettingsModel,
     ],
     migrations: [],
     subscribers: [],

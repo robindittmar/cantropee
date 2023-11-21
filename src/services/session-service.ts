@@ -1,10 +1,10 @@
 import {NextFunction, Request, Response} from "express";
-import {ResultSetHeader} from "mysql2";
-import {getConnection} from "../core/database";
+import {AppDataSource} from "../core/database";
 import {SessionModel} from "../models/session-model";
 import {User, getUserById} from "./user-service";
 import {Organization} from "./organization-service";
 import {unauthorized} from "../core/response-helpers";
+import {MoreThan} from "typeorm";
 
 export interface RequestWithSession extends Request {
     session?: Session;
@@ -75,31 +75,26 @@ export async function getSession(sessionId: string): Promise<Session | undefined
         }
     }
 
-    const conn = await getConnection();
-    const [getSessionResult] = await conn.query<SessionModel[]>(
-        'SELECT id, session_id, valid_until, BIN_TO_UUID(user_uuid) AS user_uuid,' +
-        '       BIN_TO_UUID(organization_uuid) AS organization_uuid' +
-        ' FROM cantropee.sessions' +
-        ' WHERE session_id = ?' +
-        ' AND valid_until > NOW()',
-        [sessionId]
-    );
-    conn.release();
+    const sess = await AppDataSource.manager.findOne(SessionModel, {
+        where: {
+            session_id: sessionId,
+            valid_until: MoreThan(new Date())
+        }
+    });
 
     // No session
-    if (getSessionResult[0] === undefined) {
+    if (sess === null) {
         return undefined;
     }
-    const dbSession = getSessionResult[0];
-    let user = await getUserById(dbSession.user_uuid);
-    let org = user.organizations.find((o) => o.id === dbSession.organization_uuid) ?? user.organizations[0];
+    let user = await getUserById(sess.user_uuid);
+    let org = user.organizations.find((o) => o.id === sess.organization_uuid) ?? user.organizations[0];
     if (!org) {
         throw new Error('User has no organization');
     }
 
     const session: Session = {
-        sessionId: dbSession.session_id,
-        validUntil: dbSession.valid_until,
+        sessionId: sess.session_id,
+        validUntil: sess.valid_until,
         user: user,
         organization: org,
     };
@@ -109,47 +104,25 @@ export async function getSession(sessionId: string): Promise<Session | undefined
 }
 
 export async function insertSession(session: Session): Promise<boolean> {
-    const conn = await getConnection();
-    const [result] = await conn.execute<ResultSetHeader>(
-        'INSERT INTO cantropee.sessions' +
-        ' (session_id, valid_until, user_uuid, organization_uuid)' +
-        ' VALUES (?,?,UUID_TO_BIN(?),UUID_TO_BIN(?))',
-        [
-            session.sessionId,
-            session.validUntil,
-            session.user.id,
-            session.organization.id,
-        ]
-    );
-    conn.release();
+    const model = new SessionModel();
+    model.session_id = session.sessionId;
+    model.valid_until = session.validUntil;
+    model.user_uuid = session.user.id;
+    model.organization_uuid = session.organization.id;
+    await AppDataSource.manager.save(model);
 
-    let success = result.affectedRows > 0;
-    if (success) {
-        sessionCache[session.sessionId] = session;
-    }
-
-    return success;
+    updateSessionCache(session);
+    return true;
 }
 
 export async function updateSession(session: Session): Promise<boolean> {
-    const conn = await getConnection();
-    const [updateSessionResult] = await conn.execute<ResultSetHeader>(
-        'UPDATE cantropee.sessions' +
-        ' SET organization_uuid = UUID_TO_BIN(?)' +
-        ' WHERE session_id = ?',
-        [
-            session.organization.id,
-            session.sessionId,
-        ]
-    );
-    conn.release();
+    const model = new SessionModel();
+    model.session_id = session.sessionId;
+    model.organization_uuid = session.organization.id;
+    await AppDataSource.manager.save(model);
 
-    let success = updateSessionResult.affectedRows > 0;
-    if (success) {
-        updateSessionCache(session);
-    }
-
-    return success;
+    updateSessionCache(session);
+    return true;
 }
 
 export function updateSessionCache(session: Session) {
@@ -157,38 +130,20 @@ export function updateSessionCache(session: Session) {
 }
 
 export async function revalidateSession(session: Session): Promise<boolean> {
-    const conn = await getConnection();
-    const [updateSessionResult] = await conn.execute<ResultSetHeader>(
-        'UPDATE cantropee.sessions' +
-        ' SET valid_until = ?' +
-        ' WHERE session_id = ?',
-        [
-            session.validUntil,
-            session.sessionId,
-        ]
-    );
-    conn.release();
+    const model = new SessionModel();
+    model.session_id = session.sessionId;
+    model.valid_until = session.validUntil;
+    await AppDataSource.manager.save(model);
 
-    let success = updateSessionResult.affectedRows > 0;
-    if (success) {
-        sessionCache[session.sessionId] = session;
-    }
-
-    return success;
+    updateSessionCache(session);
+    return true;
 }
 
 export async function deleteSession(session: Session): Promise<boolean> {
-    const conn = await getConnection();
-    const [updateSessionResult] = await conn.execute<ResultSetHeader>(
-        'DELETE FROM cantropee.sessions WHERE session_id = ?',
-        [session.sessionId]
-    );
-    conn.release();
+    const model = new SessionModel();
+    model.session_id = session.sessionId;
+    await AppDataSource.manager.remove(model);
 
-    let success = updateSessionResult.affectedRows > 0;
-    if (success) {
-        delete sessionCache[session.sessionId];
-    }
-
-    return success;
+    delete sessionCache[session.sessionId];
+    return true;
 }
