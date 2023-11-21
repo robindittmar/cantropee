@@ -2,6 +2,7 @@ import {Column, Entity, OneToMany, PrimaryColumn} from "typeorm";
 import {TransformUuid} from "../core/transform";
 import {OrganizationUserModel} from "./organization-user-model";
 
+
 @Entity({
     name: 'roles'
 })

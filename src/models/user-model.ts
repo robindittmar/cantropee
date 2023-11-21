@@ -1,28 +1,8 @@
-import {RowDataPacket} from 'mysql2/promise';
 import {Column, Entity, JoinColumn, OneToMany, OneToOne, PrimaryColumn} from "typeorm";
 import {TransformUuid} from "../core/transform";
 import {UserSettingsModel} from "./user-settings-model";
 import {OrganizationUserModel} from "./organization-user-model";
 
-// export interface UserModel extends RowDataPacket {
-//     id: number;
-//     uuid: string;
-//     email: string;
-//     password: string;
-//     require_password_change: number;
-//     default_organization_uuid: string;
-//     private_mode: number;
-//     default_preview_pending: number;
-//     default_sorting_order_asc: number;
-//     extra: object | null;
-//     insert_timestamp: Date;
-// }
-
-export interface OrgUserModel extends RowDataPacket {
-    uuid: string;
-    email: string;
-    role: string;
-}
 
 @Entity({
     name: 'users'
