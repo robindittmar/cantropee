@@ -9,7 +9,7 @@ import {
 } from "../services/transaction-service";
 import {getBalance} from "../services/balance-service";
 import {getSessionFromReq} from "../services/session-service";
-import {getConnection} from "../core/database";
+import {AppDataSource} from "../core/database";
 import {ServerError} from "../core/server-error";
 
 export const transactionsRouter = express.Router();
@@ -129,13 +129,7 @@ transactionsRouter.post('/', async (req, res, next) => {
             throw new ServerError(400, 'field "note" is too long (128 characters)');
         }
 
-        let result: number = 0;
-        const conn = await getConnection();
-        try {
-            result = await insertTransaction(conn, session.organization.id, transaction);
-        } finally {
-            conn.release();
-        }
+        let result = await insertTransaction(AppDataSource.manager, session.organization.id, transaction);
 
         res.send({success: result !== 0});
     } catch (err) {

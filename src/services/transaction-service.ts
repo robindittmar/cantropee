@@ -1,10 +1,10 @@
-import {getConnection} from "../core/database";
-import {CountAllResult, TransactionModel} from "../models/transaction-model";
-import {ResultSetHeader} from "mysql2";
+import {AppDataSource} from "../core/database";
+import {TransactionModel} from "../models/transaction-model";
 import {getCategories, getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
-import {PoolConnection} from "mysql2/promise";
 import {bookPendingRecurringTransactions, updateTransactionLink} from "./recurring-transaction-service";
 import {ServerError} from "../core/server-error";
+import {Between, EntityManager, In, Like} from "typeorm";
+import {BalanceModel} from "../models/balance-model";
 
 
 export interface Transaction {
@@ -47,8 +47,8 @@ export interface PaginatedTransactions {
 const modelToTransaction = (t: TransactionModel, lookup: { [id: number]: string }): Transaction => {
     return {
         id: t.uuid,
-        refId: t.ref_uuid,
-        rowIdx: 1,
+        refId: t.ref_uuid ?? undefined,
+        rowIdx: 0,
         category: lookup[t.category_id] ?? '[ERROR]',
         insertTimestamp: t.insert_timestamp,
         pending: t.effective_timestamp > new Date(),
@@ -58,7 +58,7 @@ const modelToTransaction = (t: TransactionModel, lookup: { [id: number]: string 
         value19: t.value19 ?? 0,
         vat7: t.vat7 ?? 0,
         vat19: t.vat19 ?? 0,
-        note: t.note,
+        note: t.note ?? undefined,
     };
 };
 
@@ -75,77 +75,52 @@ const transactionsDataEqual = (a: Transaction, b: Transaction): boolean => {
     );
 };
 
-export async function getTransactionByDatabaseId(conn: PoolConnection, organizationId: string, id: number): Promise<Transaction> {
-    const [result] = await conn.query<TransactionModel[]>(
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, insert_timestamp,' +
-        '       effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid, category_id, value, value19, value7,' +
-        '       vat19, vat7, note' +
-        ' FROM cantropee.transactions' +
-        ' WHERE id = ?',
-        [id]
-    );
-    conn.release();
+export async function getTransactionByDatabaseId(transaction: EntityManager, organizationId: string, id: number): Promise<Transaction> {
+    const result = await transaction.findOne(TransactionModel, {
+        where: {
+            id: id
+        }
+    });
 
-    if (result.length < 1 || result[0] === undefined) {
-        throw new Error('Transaction not found');
-    }
-
-    return modelToTransaction(result[0], await getCategoriesLookup(organizationId));
-}
-
-export async function getTransaction(organizationId: string, id: string): Promise<Transaction> {
-    const conn = await getConnection();
-    const [result] = await conn.query<TransactionModel[]>(
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, insert_timestamp,' +
-        '       effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid, category_id, value, value19, value7,' +
-        '       vat19, vat7, note' +
-        ' FROM cantropee.transactions' +
-        ' WHERE uuid = UUID_TO_BIN(?)' +
-        ' AND organization_uuid = UUID_TO_BIN(?)',
-        [id, organizationId]
-    );
-    conn.release();
-
-    if (result.length < 1 || result[0] === undefined) {
+    if (!result) {
         throw new ServerError(404, 'Transaction not found');
     }
 
-    return modelToTransaction(result[0], await getCategoriesLookup(organizationId));
+    return modelToTransaction(result, await getCategoriesLookup(organizationId));
+}
+
+export async function getTransaction(organizationId: string, id: string): Promise<Transaction> {
+    const result = await AppDataSource.manager.findOne(TransactionModel, {
+        where: {
+            uuid: id,
+            organization_uuid: organizationId,
+        }
+    });
+
+    if (!result) {
+        throw new ServerError(404, 'Transaction not found');
+    }
+
+    return modelToTransaction(result, await getCategoriesLookup(organizationId));
 }
 
 export async function getTransactionHistory(organizationId: string, transactionId: string): Promise<Transaction[]> {
     let transactions: Transaction[] = [];
 
     const categoriesLookup = await getCategoriesLookup(organizationId);
-    const conn = await getConnection();
-    const [result] = await conn.query<TransactionModel[]>(
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, insert_timestamp,' +
-        '       effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid, category_id, value, value19, value7,' +
-        '       vat19, vat7, note' +
-        ' FROM cantropee.transactions' +
-        ' WHERE current_version_uuid = UUID_TO_BIN(?)' +
-        ' AND organization_uuid = UUID_TO_BIN(?)' +
-        ' ORDER BY insert_timestamp DESC, id DESC',
-        [transactionId, organizationId]
-    );
-    conn.release();
+    const result = await AppDataSource.manager.find(TransactionModel, {
+        where: {
+            organization_uuid: organizationId,
+            current_version_uuid: transactionId,
+        },
+        order: {
+            insert_timestamp: 'DESC',
+            id: 'DESC',
+        },
+    });
 
     for (const row of result) {
-        transactions.push({
-            id: row.uuid,
-            rowIdx: 0,
-            refId: row.ref_uuid,
-            category: categoriesLookup[row.category_id] ?? '[ERROR]',
-            insertTimestamp: row.insert_timestamp,
-            pending: false,
-            effectiveTimestamp: row.effective_timestamp,
-            value: row.value,
-            value7: row.value7 ?? 0,
-            value19: row.value19 ?? 0,
-            vat7: row.vat7 ?? 0,
-            vat19: row.vat19 ?? 0,
-            note: row.note,
-        });
+        transactions.push(modelToTransaction(row, categoriesLookup));
     }
 
     return transactions;
@@ -215,45 +190,36 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
 
     const categoriesLookup = await getCategoriesLookup(organizationId);
 
-    const conn = await getConnection();
-    const [res] = await conn.query<CountAllResult[]>(
-        'SELECT COUNT(*) AS count FROM cantropee.transactions' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND active = true' +
-        ' AND effective_timestamp >= ?' +
-        ' AND effective_timestamp < ?' +
-        ' AND category_id IN (?)' +
-        (notes ? ' AND note LIKE ?' : ''),
-        [organizationId, effectiveFrom, effectiveTo, categories, notes ? `%${notes}%` : undefined]
-    );
-    result.total = res[0]?.count ?? -1;
-
+    effectiveTo.setUTCSeconds(effectiveTo.getUTCSeconds() - 1);
     const sortDirection = reverse ? 'ASC' : 'DESC';
-    const [rows] = await conn.query<TransactionModel[]>(
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
-        '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
-        '       category_id, value, value19, value7, vat19, vat7, note' +
-        ' FROM cantropee.transactions' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND active = true' +
-        ' AND effective_timestamp >= ?' +
-        ' AND effective_timestamp < ?' +
-        ' AND category_id IN (?)' +
-        (notes ? ' AND note LIKE ?' : '') +
-        ' ORDER BY effective_timestamp ' + sortDirection + ', id ' + sortDirection +
-        ' LIMIT ?,?',
-        notes ?
-            [organizationId, effectiveFrom, effectiveTo, categories, `%${notes}%`, start, count] :
-            [organizationId, effectiveFrom, effectiveTo, categories, start, count]
-    );
-    conn.release();
+    let whereCondition: any = {
+        organization_uuid: organizationId,
+        active: true,
+        effective_timestamp: Between(effectiveFrom, effectiveTo),
+        category_id: In(categories),
+    }
+    if (notes) {
+        whereCondition = {...whereCondition, note: Like(`%${notes}%`)};
+    }
+
+    const [rows, total] = await AppDataSource.manager.findAndCount(TransactionModel, {
+        where: whereCondition,
+        order: {
+            effective_timestamp: sortDirection,
+            id: sortDirection,
+        },
+        skip: start,
+        take: count,
+    });
+
+    result.total = total;
 
     const now = new Date();
     for (let row of rows) {
         result.data.push({
             id: row.uuid,
             rowIdx: reverse ? (start + 1 + result.count) : (result.total - result.count - start),
-            refId: row.ref_uuid,
+            refId: row.ref_uuid ?? undefined,
             category: categoriesLookup[row.category_id] ?? '[ERROR]',
             insertTimestamp: row.insert_timestamp,
             pending: row.effective_timestamp > now,
@@ -263,7 +229,7 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
             value19: row.value19 ?? 0,
             vat7: row.vat7 ?? 0,
             vat19: row.vat19 ?? 0,
-            note: row.note,
+            note: row.note ?? undefined,
         });
         result.count += 1;
     }
@@ -272,32 +238,23 @@ export async function getTransactions(organizationId: string, effectiveFrom: Dat
 }
 
 export async function countTransactionsByCategory(organizationId: string, categoryId: number): Promise<number> {
-    const conn = await getConnection();
-    const [result] = await conn.query<CountAllResult[]>(
-        'SELECT COUNT(id) AS count FROM cantropee.transactions' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND category_id = ?',
-        [organizationId, categoryId]
-    );
-    conn.release();
-
-    return result[0]?.count ?? 0;
+    return AppDataSource.manager.count(TransactionModel, {
+        where: {
+            organization_uuid: organizationId,
+            category_id: categoryId,
+        }
+    });
 }
 
 export async function getAllTransactions(organizationId: string): Promise<Transaction[]> {
     let transactions: Transaction[] = [];
     const categoriesLookup = await getCategoriesLookup(organizationId);
 
-    const conn = await getConnection();
-    const [rows] = await conn.query<TransactionModel[]>(
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
-        '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
-        '       category_id, value, value19, value7, vat19, vat7, note' +
-        ' FROM cantropee.transactions' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)',
-        [organizationId]
-    );
-    conn.release();
+    const rows = await AppDataSource.manager.find(TransactionModel, {
+        where: {
+            organization_uuid: organizationId
+        }
+    });
 
     // TODO: We need to carry 'active' flag etc :D (MAYBE we should actually full on dump the model)
     let count = 1;
@@ -305,7 +262,7 @@ export async function getAllTransactions(organizationId: string): Promise<Transa
         transactions.push({
             id: row.uuid,
             rowIdx: count,
-            refId: row.ref_uuid,
+            refId: row.ref_uuid ?? undefined,
             category: categoriesLookup[row.category_id] ?? '[ERROR]',
             insertTimestamp: row.insert_timestamp,
             pending: undefined,
@@ -315,7 +272,7 @@ export async function getAllTransactions(organizationId: string): Promise<Transa
             value19: row.value19 ?? 0,
             vat7: row.vat7 ?? 0,
             vat19: row.vat19 ?? 0,
-            note: row.note,
+            note: row.note ?? undefined,
         });
 
         count += 1;
@@ -324,67 +281,72 @@ export async function getAllTransactions(organizationId: string): Promise<Transa
     return transactions;
 }
 
-export async function insertTransaction(conn: PoolConnection, organizationId: string, t: Transaction) {
+export async function insertTransaction(transaction: EntityManager, organizationId: string, t: Transaction) {
     const categoriesReverseLookup = await getCategoriesReverseLookup(organizationId);
     if (!(t.category in categoriesReverseLookup)) {
         throw new ServerError(400, `invalid category: '${t.category}'`);
     }
-    const categoryId = categoriesReverseLookup[t.category];
+    const categoryId = categoriesReverseLookup[t.category]!;
 
     if (t.value === 0) {
         throw new ServerError(400, 'invalid amount for transaction: 0');
     }
 
-    const [res] = await conn.query<ResultSetHeader>(
-        'INSERT INTO cantropee.transactions' +
-        ' (organization_uuid, effective_timestamp, ref_uuid, category_id, value, value19, value7, vat19, vat7, note)' +
-        ' VALUES (UUID_TO_BIN(?),?,UUID_TO_BIN(?),?,?,?,?,?,?,?)',
-        [
-            organizationId,
-            t.effectiveTimestamp.toISOString().slice(0, 19).replace('T', ' '),
-            t.refId,
-            categoryId,
-            t.value,
-            t.value19 !== 0 ? t.value19 : null,
-            t.value7 !== 0 ? t.value7 : null,
-            t.vat19 !== 0 ? t.vat19 : null,
-            t.vat7 !== 0 ? t.vat7 : null,
-            t.note,
-        ]
-    );
+    const model = new TransactionModel();
+    model.organization_uuid = organizationId;
+    model.effective_timestamp = t.effectiveTimestamp;
+    model.ref_uuid = t.refId ?? null;
+    model.category_id = categoryId;
+    model.value = t.value;
+    model.value19 = t.value19 !== 0 ? t.value19 : null;
+    model.value7 = t.value7 !== 0 ? t.value7 : null;
+    model.vat19 = t.vat19 !== 0 ? t.vat19 : null;
+    model.vat7 = t.vat7 !== 0 ? t.vat7 : null;
+    model.note = t.note ?? null;
+    await transaction.save(model);
 
-    const [update] = await conn.execute<ResultSetHeader>(
-        'UPDATE cantropee.balance' +
-        ' SET dirty = true' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND dirty = false' +
-        ' AND effective_from <= ?' +
-        ' AND effective_to > ?',
-        [organizationId, t.effectiveTimestamp, t.effectiveTimestamp]
-    );
+    const update = await transaction
+        .createQueryBuilder()
+        .update(BalanceModel)
+        .set({
+            dirty: true
+        })
+        .where('organization_uuid = UUID_TO_BIN(:orgId)', {orgId: organizationId})
+        .andWhere('dirty = 0')
+        .andWhere('effective_from <= :timestamp', {timestamp: t.effectiveTimestamp})
+        .andWhere('effective_to > :timestamp', {timestamp: t.effectiveTimestamp})
+        .execute();
 
-    if (update.affectedRows < 1) {
+    if (update.affected ?? 0 < 1) {
         console.warn('Could not mark balance as dirty');
     }
 
-    return res.insertId;
+    return model.id;
 }
 
-async function updatePreviousVersions(conn: PoolConnection, oldId: string, newId: string) {
-    const [updateLastVersion] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.transactions SET active=false, current_version_uuid=UUID_TO_BIN(?) WHERE uuid=UUID_TO_BIN(?)',
-        [newId, oldId]
-    );
-    if (updateLastVersion.affectedRows !== 1) {
+async function updatePreviousVersions(transaction: EntityManager, oldId: string, newId: string) {
+    const updateLastVersion = await transaction
+        .createQueryBuilder()
+        .update(TransactionModel)
+        .set({
+            active: false,
+            current_version_uuid: newId
+        })
+        .where('uuid = UUID_TO_BIN(:id)', {id: oldId})
+        .execute();
+
+    if (updateLastVersion.affected !== 1) {
         throw new Error('UpdateTransaction: Could not set transaction active=false');
     }
 
-    const [_updatePreviousVersions] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.transactions' +
-        ' SET current_version_uuid=UUID_TO_BIN(?)' +
-        ' WHERE current_version_uuid=UUID_TO_BIN(?)',
-        [newId, oldId]
-    );
+    await transaction
+        .createQueryBuilder()
+        .update(TransactionModel)
+        .set({
+            current_version_uuid: newId,
+        })
+        .where('current_version_uuid = UUID_TO_BIN(:id)', {id: oldId})
+        .execute();
 }
 
 export async function updateTransaction(organizationId: string, t: Transaction): Promise<{ id: string }> {
@@ -396,28 +358,18 @@ export async function updateTransaction(organizationId: string, t: Transaction):
     }
 
     let newId: string = '';
-    const conn = await getConnection();
-    try {
-        await conn.query('START TRANSACTION');
-
+    await AppDataSource.manager.transaction(async manager => {
         t.refId = oldId;
-        const id = await insertTransaction(conn, organizationId, t);
-        let newTransaction = await getTransactionByDatabaseId(conn, organizationId, id);
+        const id = await insertTransaction(manager, organizationId, t);
+        let newTransaction = await getTransactionByDatabaseId(manager, organizationId, id);
         newId = newTransaction.id;
 
-        await updatePreviousVersions(conn, oldId, newId);
+        await updatePreviousVersions(manager, oldId, newId);
 
         // Ultimately this should be an event -- "transactions has updated";
         // which recurring transactions subscribe to.
-        await updateTransactionLink(conn, oldId, newId);
-
-        await conn.query('COMMIT');
-    } catch (err) {
-        console.log(err);
-        await conn.query('ROLLBACK');
-    } finally {
-        conn.release();
-    }
+        await updateTransactionLink(manager, oldId, newId);
+    });
 
     return {id: newId};
 }

@@ -47,5 +47,5 @@ export class BalanceModel {
     valid_until!: Date;
 
     @Column()
-    dirty!: number;
+    dirty!: boolean;
 }

@@ -1,10 +1,10 @@
 import {BalanceModel} from "../models/balance-model";
-import {AppDataSource, getConnection} from "../core/database";
+import {AppDataSource} from "../core/database";
 import {TransactionModel} from "../models/transaction-model";
 import {ResultSetHeader} from "mysql2";
 import {PoolConnection} from "mysql2/promise";
 import {ServerError} from "../core/server-error";
-import {MoreThan} from "typeorm";
+import {Between, Like, MoreThan} from "typeorm";
 
 
 export interface Balance {
@@ -50,67 +50,28 @@ const modelToBalance = (model: BalanceModel): Balance => {
 };
 
 async function calculateBalance(organizationId: string, startingFrom: Date = new Date(1970, 1, 1), endingAt: Date = new Date(), categoryId: number | undefined, note: string | undefined): Promise<Balance> {
-    let rows: TransactionModel[] = [];
+    endingAt.setUTCSeconds(endingAt.getUTCSeconds() - 1);
 
-    const conn = await getConnection();
-    if (categoryId && note) {
-        [rows] = await conn.execute<TransactionModel[]>(
-            'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
-            '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
-            '       category_id, value, value19, value7, vat19, vat7, note' +
-            ' FROM cantropee.transactions' +
-            ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-            ' AND active = true' +
-            ' AND effective_timestamp >= ?' +
-            ' AND effective_timestamp < ?' +
-            ' AND category_id IN (?)' +
-            ' AND note LIKE ?' +
-            ' ORDER BY effective_timestamp ASC',
-            [organizationId, startingFrom, endingAt, categoryId, `%${note}%`]
-        );
-    } else if (categoryId) {
-        [rows] = await conn.execute<TransactionModel[]>(
-            'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
-            '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
-            '       category_id, value, value19, value7, vat19, vat7, note' +
-            ' FROM cantropee.transactions' +
-            ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-            ' AND active = true' +
-            ' AND effective_timestamp >= ?' +
-            ' AND effective_timestamp < ?' +
-            ' AND category_id IN (?)' +
-            ' ORDER BY effective_timestamp ASC',
-            [organizationId, startingFrom, endingAt, categoryId]
-        );
-    } else if (note) {
-        [rows] = await conn.execute<TransactionModel[]>(
-            'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
-            '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
-            '       category_id, value, value19, value7, vat19, vat7, note' +
-            ' FROM cantropee.transactions' +
-            ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-            ' AND active = true' +
-            ' AND effective_timestamp >= ?' +
-            ' AND effective_timestamp < ?' +
-            ' AND note LIKE ?' +
-            ' ORDER BY effective_timestamp ASC',
-            [organizationId, startingFrom, endingAt, `%${note}%`]
-        );
-    } else {
-        [rows] = await conn.execute<TransactionModel[]>(
-            'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid,' +
-            '       insert_timestamp, effective_timestamp, active, BIN_TO_UUID(ref_uuid) AS ref_uuid,' +
-            '       category_id, value, value19, value7, vat19, vat7, note' +
-            ' FROM cantropee.transactions' +
-            ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-            ' AND active = true' +
-            ' AND effective_timestamp >= ?' +
-            ' AND effective_timestamp < ?' +
-            ' ORDER BY effective_timestamp ASC',
-            [organizationId, startingFrom, endingAt]
-        );
+
+    let whereCondition: any = {
+        organization_uuid: organizationId,
+        active: true,
+        effective_timestamp: Between(startingFrom, endingAt)
+    };
+    if (categoryId) {
+        whereCondition = {...whereCondition, category_id: categoryId};
     }
-    conn.release();
+    if (note) {
+        whereCondition = {...whereCondition, note: Like(`%${note}%`)};
+    }
+
+    let rows: TransactionModel[] = await AppDataSource.manager.find(TransactionModel, {
+        where: whereCondition,
+        order: {
+            effective_timestamp: 'ASC',
+        }
+    });
+
 
     const now = new Date();
     let validUntil = new Date();
@@ -196,7 +157,7 @@ export async function getBalance(organizationId: string, effectiveFrom: Date, ef
         model = await AppDataSource.manager.findOne(BalanceModel, {
             where: {
                 organization_uuid: organizationId,
-                dirty: 0,
+                dirty: false,
                 valid_until: MoreThan(new Date()),
                 effective_from: effectiveFrom,
                 effective_to: effectiveTo

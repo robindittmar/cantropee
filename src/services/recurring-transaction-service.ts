@@ -1,4 +1,4 @@
-import {getConnection} from "../core/database";
+import {AppDataSource, getConnection} from "../core/database";
 import {RecurringTransactionLinkEffectiveDate, RecurringTransactionModel} from "../models/recurring-transaction-model";
 import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
 import {getTransactionByDatabaseId, insertTransaction, Transaction} from "./transaction-service";
@@ -6,6 +6,7 @@ import {invalidateAllBalances} from "./balance-service";
 import {ResultSetHeader} from "mysql2";
 import moment from 'moment-timezone';
 import {PoolConnection} from "mysql2/promise";
+import {EntityManager} from "typeorm";
 
 export enum ExecutionPolicy {
     StartOfMonth,
@@ -51,30 +52,32 @@ const makeTransactionFromRecurring = (recurring: RecurringTransaction): Transact
 
 const bookTransactionFromRecurring = async (conn: PoolConnection, organizationId: string, recurring: RecurringTransaction): Promise<string | undefined> => {
     let t = makeTransactionFromRecurring(recurring);
+    let resultId: string = '';
 
-    await conn.query('START TRANSACTION');
-    let transactionId = await insertTransaction(conn, organizationId, t);
-    if (transactionId === 0) {
-        await conn.query('ROLLBACK');
-        console.error('Error writing transaction, rolled back.' + t);
-        return undefined;
-    }
+    await AppDataSource.manager.transaction(async manager => {
+        let transactionId = await insertTransaction(manager, organizationId, t);
+        if (transactionId === 0) {
+            await conn.query('ROLLBACK');
+            console.error('Error writing transaction, rolled back.' + t);
+            return undefined;
+        }
 
-    let transaction = await getTransactionByDatabaseId(conn, organizationId, transactionId);
+        let transaction = await getTransactionByDatabaseId(manager, organizationId, transactionId);
+        resultId = transaction.id;
 
-    let [insertLink] = await conn.execute<ResultSetHeader>(
-        'INSERT INTO cantropee.recurring_booked (recurring_uuid, transaction_uuid)' +
-        ' VALUES (UUID_TO_BIN(?),UUID_TO_BIN(?))',
-        [recurring.id, transaction.id]
-    );
-    if (insertLink.affectedRows !== 1) {
-        await conn.query('ROLLBACK');
-        console.error('Error writing link for recurring transaction, rolled back.' + recurring);
-        return undefined;
-    }
+        let [insertLink] = await conn.execute<ResultSetHeader>(
+            'INSERT INTO cantropee.recurring_booked (recurring_uuid, transaction_uuid)' +
+            ' VALUES (UUID_TO_BIN(?),UUID_TO_BIN(?))',
+            [recurring.id, transaction.id]
+        );
+        if (insertLink.affectedRows !== 1) {
+            await conn.query('ROLLBACK');
+            console.error('Error writing link for recurring transaction, rolled back.' + recurring);
+            return undefined;
+        }
+    });
 
-    await conn.query('COMMIT');
-    return transaction.id;
+    return resultId;
 };
 
 export async function getRecurringTransactionByDatabaseId(organizationId: string, id: number): Promise<RecurringTransaction> {
@@ -285,7 +288,7 @@ export async function bookPendingRecurringTransactions(organizationId: string, p
     const conn = await getConnection();
     try {
         for (const recurring of pending) {
-            const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(conn, recurring));
+            const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(AppDataSource.manager, recurring));
 
             newIds = newIds.concat(await bookTransactions(conn, organizationId, recurring, pendingTransactionDates));
 
@@ -304,8 +307,10 @@ export async function bookPendingRecurringTransactions(organizationId: string, p
 
 export async function ensureRecurringPrebooked(organizationId: string, recurring: RecurringTransaction, previewCount: number): Promise<string[]> {
     const conn = await getConnection();
-    const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(conn, recurring));
-    return prebookTransactions(conn, organizationId, recurring, pendingTransactionDates, previewCount);
+    const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(AppDataSource.manager, recurring));
+    const ids = prebookTransactions(conn, organizationId, recurring, pendingTransactionDates, previewCount);
+    conn.release();
+    return ids;
 }
 
 export async function bookTransactions(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction, prebookedDates: Date[]): Promise<string[]> {
@@ -416,7 +421,8 @@ export async function deleteRecurringTransaction(organizationId: string, recurri
     return false;
 }
 
-export async function getPendingTransactionDatesForRecurring(conn: PoolConnection, recurring: RecurringTransaction): Promise<Date[]> {
+export async function getPendingTransactionDatesForRecurring(_transaction: EntityManager, recurring: RecurringTransaction): Promise<Date[]> {
+    const conn = await getConnection();
     const [rows] = await conn.query<RecurringTransactionLinkEffectiveDate[]>(
         'SELECT T.effective_timestamp AS effective_timestamp' +
         ' FROM cantropee.recurring_booked B' +
@@ -434,7 +440,8 @@ export async function getPendingTransactionDatesForRecurring(conn: PoolConnectio
     return dates;
 }
 
-export async function updateTransactionLink(conn: PoolConnection, oldId: string, newId: string): Promise<boolean> {
+export async function updateTransactionLink(_transaction: EntityManager, oldId: string, newId: string): Promise<boolean> {
+    const conn = await getConnection();
     let [result] = await conn.query<ResultSetHeader>(
         'UPDATE cantropee.recurring_booked' +
         ' SET transaction_uuid=UUID_TO_BIN(?)' +
