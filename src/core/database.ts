@@ -20,8 +20,8 @@ export const AppDataSource: DataSource = new DataSource({
     supportBigNumbers: true,
     maxQueryExecutionTime: 5000,
     poolSize: 10,
-    username: 'root',
-    password: 'cantropee',
+    username: 'ctp_svc_usr',
+    password: 'vmV55V4E7GF4wD^bD#x*Rd4ruR!HXn*a',
     database: 'cantropee',
     logging: process.env['NODE_ENV'] === 'development',
     entities: [
