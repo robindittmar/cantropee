@@ -334,24 +334,35 @@ export async function prebookTransactions(transaction: EntityManager, organizati
 
 export async function deleteRecurringTransaction(organizationId: string, recurringTransactionId: string, cascade: boolean = false): Promise<boolean> {
     await AppDataSource.manager.transaction(async transaction => {
+
+        const subquery = transaction.createQueryBuilder()
+            .select('transaction_uuid')
+            .from(RecurringBookedModel, 'b');
         if (cascade) {
-            const subquery = transaction.createQueryBuilder()
-                .select('transaction_uuid')
-                .from(RecurringBookedModel, 'r')
-                .where('recurring_uuid = UUID_TO_BIN(:recurring_id)', {recurring_id: recurringTransactionId});
+            subquery
+                .where('b.recurring_uuid = UUID_TO_BIN(:recurring_id)', {recurring_id: recurringTransactionId});
+        } else {
+            // If we do not cascade delete we still need to
+            // deactivate "preview/prebooked" transactions
+            subquery
+                .leftJoin(TransactionModel, 't', 'b.transaction_uuid=t.uuid')
+                .where('b.recurring_uuid = UUID_TO_BIN(:recurring_id)', {recurring_id: recurringTransactionId})
+                .andWhere('t.effective_timestamp > NOW()');
+        }
 
-            const updateQuery = transaction.createQueryBuilder()
-                .update(TransactionModel)
-                .set({
-                    active: false
-                })
-                .where('organization_uuid = UUID_TO_BIN(:orgId)', {orgId: organizationId})
-                .andWhere('uuid IN (' + subquery.getQuery() + ')')
-                .setParameters(subquery.getParameters());
+        const updateQuery = transaction.createQueryBuilder()
+            .update(TransactionModel)
+            .set({
+                active: false
+            })
+            .where('organization_uuid = UUID_TO_BIN(:orgId)', {orgId: organizationId})
+            .andWhere('uuid IN (' + subquery.getQuery() + ')')
+            .setParameters(subquery.getParameters());
 
 
-            await updateQuery.execute();
+        const result = await updateQuery.execute();
 
+        if (result.affected ?? 0 > 0) {
             await invalidateAllBalances(transaction, organizationId);
         }
 
