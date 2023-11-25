@@ -1,5 +1,3 @@
-import * as mysql from 'mysql2/promise';
-import {RowDataPacket} from "mysql2/promise";
 import {DataSource} from "typeorm";
 import {BalanceModel} from "../models/balance-model";
 import {CategoryModel} from "../models/category-model";
@@ -10,29 +8,8 @@ import {UserModel} from "../models/user-model";
 import {UserSettingsModel} from "../models/user-settings-model";
 import {SessionModel} from "../models/session-model";
 import {TransactionModel} from "../models/transaction-model";
-
-let mysqlConnectionPool: mysql.Pool;
-
-export interface ResultUUID extends RowDataPacket {
-    uuid: string;
-}
-
-export function initDatabaseConnection() {
-    mysqlConnectionPool = mysql.createPool({
-        host: process.env['NODE_ENV'] === 'development' ? 'localhost' : 'mysql',
-        user: 'ctp_svc_usr',
-        password: 'vmV55V4E7GF4wD^bD#x*Rd4ruR!HXn*a',
-        port: 3306,
-        charset: 'utf8',
-        database: 'cantropee',
-        timezone: 'Z',
-        enableKeepAlive: true,
-    });
-}
-
-export async function getConnection() {
-    return await mysqlConnectionPool.getConnection();
-}
+import {RecurringBookedModel} from "../models/recurring-booked-model";
+import {RecurringTransactionModel} from "../models/recurring-transaction-model";
 
 
 export const AppDataSource: DataSource = new DataSource({
@@ -40,6 +17,9 @@ export const AppDataSource: DataSource = new DataSource({
     host: process.env['NODE_ENV'] === 'development' ? 'localhost' : 'mysql',
     port: 3306,
     timezone: 'Z',
+    supportBigNumbers: true,
+    maxQueryExecutionTime: 5000,
+    poolSize: 10,
     username: 'root',
     password: 'cantropee',
     database: 'cantropee',
@@ -49,6 +29,8 @@ export const AppDataSource: DataSource = new DataSource({
         CategoryModel,
         OrganizationModel,
         OrganizationUserModel,
+        RecurringBookedModel,
+        RecurringTransactionModel,
         RoleModel,
         SessionModel,
         TransactionModel,

@@ -1,10 +1,8 @@
 import {BalanceModel} from "../models/balance-model";
 import {AppDataSource} from "../core/database";
 import {TransactionModel} from "../models/transaction-model";
-import {ResultSetHeader} from "mysql2";
-import {PoolConnection} from "mysql2/promise";
 import {ServerError} from "../core/server-error";
-import {Between, Like, MoreThan} from "typeorm";
+import {Between, EntityManager, Like, MoreThan} from "typeorm";
 
 
 export interface Balance {
@@ -183,11 +181,12 @@ export async function getBalance(organizationId: string, effectiveFrom: Date, ef
     return balance;
 }
 
-export async function invalidateAllBalances(conn: PoolConnection, organizationId: string): Promise<boolean> {
-    const [result] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.balance SET dirty=true WHERE organization_uuid = UUID_TO_BIN(?)',
-        [organizationId]
-    );
-
-    return result.warningStatus === 0;
+export async function invalidateAllBalances(manager: EntityManager, organizationId: string): Promise<void> {
+    await manager.createQueryBuilder()
+        .update(BalanceModel)
+        .set({
+            dirty: true
+        })
+        .where('organization_uuid = UUID_TO_BIN(:orgId)', {orgId: organizationId})
+        .execute();
 }

@@ -8,7 +8,7 @@ import express, {Request, Response, NextFunction} from 'express';
 import cookieParser from "cookie-parser";
 import {ServerError} from "./core/server-error";
 import {validateSession} from "./services/session-service";
-import {AppDataSource, initDatabaseConnection} from "./core/database";
+import {AppDataSource} from "./core/database";
 import {housekeep} from "./services/housekeep-service";
 import {loginRouter} from "./routes/login-route";
 import {logoutRouter} from "./routes/logout-route";
@@ -26,7 +26,6 @@ async function main() {
     console.log(`$ initializing with ${JSON.stringify(conf.parsed)}`);
 
     await AppDataSource.initialize();
-    initDatabaseConnection();
 
     await housekeep();
 

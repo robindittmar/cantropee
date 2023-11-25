@@ -1,5 +1,6 @@
-import {Column, Entity, PrimaryColumn, PrimaryGeneratedColumn} from "typeorm";
+import {Column, Entity, JoinColumn, OneToMany, PrimaryColumn, PrimaryGeneratedColumn} from "typeorm";
 import {TransformUuid} from "../core/transform";
+import {RecurringBookedModel} from "./recurring-booked-model";
 
 
 @Entity({
@@ -26,7 +27,7 @@ export class TransactionModel {
     @Column()
     insert_timestamp!: Date;
 
-    @Column({})
+    @Column()
     effective_timestamp!: Date;
 
     @Column()
@@ -55,32 +56,31 @@ export class TransactionModel {
     value!: number;
 
     @Column({
-        type: 'bigint',
         nullable: true
     })
-    value19!: number | null;
+    value19?: number;
 
     @Column({
-        type: 'bigint',
         nullable: true
     })
-    value7!: number | null;
+    value7?: number;
 
     @Column({
-        type: 'bigint',
         nullable: true
     })
-    vat19!: number | null;
+    vat19?: number;
 
     @Column({
-        type: 'bigint',
         nullable: true
     })
-    vat7!: number | null;
+    vat7?: number;
 
     @Column({
-        type: 'text',
         nullable: true
     })
-    note!: string | null;
+    note?: string;
+
+    @OneToMany(() => RecurringBookedModel, m => m.transaction)
+    @JoinColumn({name: 'uuid', referencedColumnName: 'transaction_uuid'})
+    recurringBooked!: RecurringBookedModel;
 }

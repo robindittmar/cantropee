@@ -298,11 +298,21 @@ export async function insertTransaction(transaction: EntityManager, organization
     model.ref_uuid = t.refId ?? null;
     model.category_id = categoryId;
     model.value = t.value;
-    model.value19 = t.value19 !== 0 ? t.value19 : null;
-    model.value7 = t.value7 !== 0 ? t.value7 : null;
-    model.vat19 = t.vat19 !== 0 ? t.vat19 : null;
-    model.vat7 = t.vat7 !== 0 ? t.vat7 : null;
-    model.note = t.note ?? null;
+    if (t.value !== 0) {
+        model.value19 = t.value19;
+    }
+    if (t.value !== 0) {
+        model.value7 = t.value7;
+    }
+    if (t.vat19 !== 0) {
+        model.vat19 = t.vat19;
+    }
+    if (t.vat7 !== 0) {
+        model.vat7 = t.vat7;
+    }
+    if (t.note) {
+        model.note = t.note;
+    }
     await transaction.save(model);
 
     const update = await transaction
