@@ -63,7 +63,7 @@ transactionsRouter.get('/', async (req, res, next) => {
             effectiveTo = new Date();
         }
 
-        let result = await getTransactions(
+        let transactions = await getTransactions(
             session.organization.id,
             effectiveFrom,
             effectiveTo,
@@ -74,7 +74,13 @@ transactionsRouter.get('/', async (req, res, next) => {
             note,
             session.organization.previewRecurringCount,
         );
-        res.send(result);
+
+        const balance = await getBalance(session.organization.id, effectiveFrom, effectiveTo, categoryFilter, note);
+
+        res.send({
+            balance,
+            transactions,
+        });
     } catch (err) {
         next(err);
     }
