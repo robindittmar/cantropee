@@ -298,10 +298,10 @@ export async function insertTransaction(transaction: EntityManager, organization
     model.ref_uuid = t.refId ?? null;
     model.category_id = categoryId;
     model.value = t.value;
-    if (t.value !== 0) {
+    if (t.value19 !== 0) {
         model.value19 = t.value19;
     }
-    if (t.value !== 0) {
+    if (t.value7 !== 0) {
         model.value7 = t.value7;
     }
     if (t.vat19 !== 0) {
