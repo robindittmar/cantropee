@@ -1,8 +1,24 @@
-import {RowDataPacket} from 'mysql2/promise';
+import {Column, Entity, PrimaryColumn, PrimaryGeneratedColumn} from "typeorm";
+import {TransformUuid} from "../core/transform";
 
-export interface CategoryModel extends RowDataPacket {
-    id: number;
-    organization_uuid: string;
-    name: string;
-    insert_timestamp: Date;
+
+@Entity({
+    name: 'categories'
+})
+export class CategoryModel {
+    @PrimaryGeneratedColumn()
+    id!: number;
+
+    @PrimaryColumn({
+        type: 'binary',
+        length: 16,
+        transformer: TransformUuid,
+    })
+    organization_uuid!: string;
+
+    @Column()
+    name!: string;
+
+    @Column()
+    insert_timestamp!: Date;
 }

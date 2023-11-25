@@ -1,11 +1,12 @@
-import {getConnection} from "../core/database";
-import {RecurringTransactionLinkEffectiveDate, RecurringTransactionModel} from "../models/recurring-transaction-model";
+import {AppDataSource} from "../core/database";
+import {RecurringTransactionModel} from "../models/recurring-transaction-model";
 import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
 import {getTransactionByDatabaseId, insertTransaction, Transaction} from "./transaction-service";
 import {invalidateAllBalances} from "./balance-service";
-import {ResultSetHeader} from "mysql2";
 import moment from 'moment-timezone';
-import {PoolConnection} from "mysql2/promise";
+import {EntityManager, LessThanOrEqual} from "typeorm";
+import {RecurringBookedModel} from "../models/recurring-booked-model";
+import {TransactionModel} from "../models/transaction-model";
 
 export enum ExecutionPolicy {
     StartOfMonth,
@@ -14,7 +15,7 @@ export enum ExecutionPolicy {
 
 export interface RecurringTransaction {
     id: string;
-    active: boolean,
+    active: boolean;
     insertTimestamp: Date;
     timezone: string;
     executionPolicy: ExecutionPolicy;
@@ -49,158 +50,128 @@ const makeTransactionFromRecurring = (recurring: RecurringTransaction): Transact
     };
 }
 
-const bookTransactionFromRecurring = async (conn: PoolConnection, organizationId: string, recurring: RecurringTransaction): Promise<string | undefined> => {
+const bookTransactionFromRecurring = async (manager: EntityManager, organizationId: string, recurring: RecurringTransaction): Promise<string | undefined> => {
     let t = makeTransactionFromRecurring(recurring);
+    let resultId: string = '';
 
-    await conn.query('START TRANSACTION');
-    let transactionId = await insertTransaction(conn, organizationId, t);
+    let transactionId = await insertTransaction(manager, organizationId, t);
     if (transactionId === 0) {
-        await conn.query('ROLLBACK');
-        console.error('Error writing transaction, rolled back.' + t);
-        return undefined;
+        throw new Error('Error writing transaction, rolled back.' + t);
     }
 
-    let transaction = await getTransactionByDatabaseId(conn, organizationId, transactionId);
+    let transaction = await getTransactionByDatabaseId(manager, organizationId, transactionId);
+    resultId = transaction.id;
 
-    let [insertLink] = await conn.execute<ResultSetHeader>(
-        'INSERT INTO cantropee.recurring_booked (recurring_uuid, transaction_uuid)' +
-        ' VALUES (UUID_TO_BIN(?),UUID_TO_BIN(?))',
-        [recurring.id, transaction.id]
-    );
-    if (insertLink.affectedRows !== 1) {
-        await conn.query('ROLLBACK');
-        console.error('Error writing link for recurring transaction, rolled back.' + recurring);
-        return undefined;
-    }
+    const link = new RecurringBookedModel();
+    link.recurring_uuid = recurring.id;
+    link.transaction_uuid = transaction.id;
+    await manager.save(link);
 
-    await conn.query('COMMIT');
-    return transaction.id;
+    return resultId;
 };
 
 export async function getRecurringTransactionByDatabaseId(organizationId: string, id: number): Promise<RecurringTransaction> {
-    const conn = await getConnection();
-    const [result] = await conn.query<RecurringTransactionModel[]>(
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, active,' +
-        '       insert_timestamp, timezone, execution_policy, execution_policy_data, first_execution,' +
-        '       next_execution, last_execution, category_id, value, value19, value7, vat19, vat7, note' +
-        ' FROM cantropee.recurring_transactions' +
-        ' WHERE id = ?',
-        [id]
-    );
-    conn.release();
+    const recurring = await AppDataSource.manager.findOne(RecurringTransactionModel, {
+        where: {
+            id: id
+        }
+    });
 
-    if (result.length < 1 || result[0] === undefined) {
-        throw new Error('Transaction not found');
-    }
-
-    const categoriesLookup = await getCategoriesLookup(organizationId);
-    const recurring = result[0];
-    return {
-        id: recurring.uuid,
-        active: recurring.active !== 0,
-        insertTimestamp: recurring.insert_timestamp,
-        timezone: recurring.timezone,
-        executionPolicy: recurring.execution_policy,
-        executionPolicyData: recurring.execution_policy_data ?? {},
-        firstExecution: recurring.first_execution,
-        nextExecution: recurring.next_execution,
-        lastExecution: recurring.last_execution,
-        category: categoriesLookup[recurring.category_id] ?? '[ERROR]',
-        value: recurring.value,
-        value19: recurring.value19,
-        value7: recurring.value7,
-        vat19: recurring.vat19,
-        vat7: recurring.vat7,
-        note: recurring.note,
-    };
-}
-
-
-export async function getRecurringTransaction(organizationId: string, id: string): Promise<RecurringTransaction> {
-    const conn = await getConnection();
-    const [dbRecurring] = await conn.query<RecurringTransactionModel[]>(
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, active,' +
-        '       insert_timestamp, timezone, execution_policy, execution_policy_data, first_execution,' +
-        '       next_execution, last_execution, category_id, value, value19, value7, vat19, vat7, note' +
-        'FROM cantropee.recurring_transactions' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND uuid = UUID_TO_BIN(id)' +
-        ' AND active = true',
-        [organizationId, id]
-    );
-    conn.release();
-
-    let recurring = dbRecurring[0];
     if (!recurring) {
         throw new Error('Recurring transaction not found');
     }
 
     const categoriesLookup = await getCategoriesLookup(organizationId);
-
     return {
         id: recurring.uuid,
-        active: recurring.active !== 0,
+        active: recurring.active,
         insertTimestamp: recurring.insert_timestamp,
         timezone: recurring.timezone,
         executionPolicy: recurring.execution_policy,
         executionPolicyData: recurring.execution_policy_data ?? {},
         firstExecution: recurring.first_execution,
         nextExecution: recurring.next_execution,
-        lastExecution: recurring.last_execution,
+        lastExecution: recurring.last_execution ?? undefined,
         category: categoriesLookup[recurring.category_id] ?? '[ERROR]',
         value: recurring.value,
-        value19: recurring.value19,
-        value7: recurring.value7,
-        vat19: recurring.vat19,
-        vat7: recurring.vat7,
-        note: recurring.note,
+        value19: recurring.value19 ?? undefined,
+        value7: recurring.value7 ?? undefined,
+        vat19: recurring.vat19 ?? undefined,
+        vat7: recurring.vat7 ?? undefined,
+        note: recurring.note ?? undefined,
+    };
+}
+
+
+export async function getRecurringTransaction(organizationId: string, id: string): Promise<RecurringTransaction> {
+    const recurring = await AppDataSource.manager.findOne(RecurringTransactionModel, {
+        where: {
+            uuid: id,
+            organization_uuid: organizationId,
+        }
+    });
+
+    if (!recurring) {
+        throw new Error('Recurring transaction not found');
+    }
+
+    const categoriesLookup = await getCategoriesLookup(organizationId);
+    return {
+        id: recurring.uuid,
+        active: recurring.active,
+        insertTimestamp: recurring.insert_timestamp,
+        timezone: recurring.timezone,
+        executionPolicy: recurring.execution_policy,
+        executionPolicyData: recurring.execution_policy_data ?? {},
+        firstExecution: recurring.first_execution,
+        nextExecution: recurring.next_execution,
+        lastExecution: recurring.last_execution ?? undefined,
+        category: categoriesLookup[recurring.category_id] ?? '[ERROR]',
+        value: recurring.value,
+        value19: recurring.value19 ?? undefined,
+        value7: recurring.value7 ?? undefined,
+        vat19: recurring.vat19 ?? undefined,
+        vat7: recurring.vat7 ?? undefined,
+        note: recurring.note ?? undefined,
     };
 }
 
 export async function getRecurringTransactions(organizationId: string, nextExecutionSmallerEqual: Date | undefined = undefined): Promise<RecurringTransaction[]> {
-    const query = !!nextExecutionSmallerEqual ?
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, active,' +
-        '       insert_timestamp, timezone, execution_policy, execution_policy_data, first_execution,' +
-        '       next_execution, last_execution, category_id, value, value19, value7, vat19, vat7, note' +
-        ' FROM cantropee.recurring_transactions' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' AND next_execution <= ?' +
-        ' ORDER BY active DESC, id DESC'
-        :
-        'SELECT BIN_TO_UUID(uuid) AS uuid, BIN_TO_UUID(organization_uuid) AS organization_uuid, active,' +
-        '       insert_timestamp, timezone, execution_policy, execution_policy_data, first_execution,' +
-        '       next_execution, last_execution, category_id, value, value19, value7, vat19, vat7, note' +
-        ' FROM cantropee.recurring_transactions' +
-        ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-        ' ORDER BY active DESC, id DESC';
+    let whereOptions: any = {
+        organization_uuid: organizationId
+    };
+    if (nextExecutionSmallerEqual) {
+        whereOptions = {...whereOptions, next_execution: LessThanOrEqual(nextExecutionSmallerEqual)};
+    }
 
-    const conn = await getConnection();
-    const [dbRecurring] = await conn.query<RecurringTransactionModel[]>(
-        query,
-        [organizationId, nextExecutionSmallerEqual]
-    );
-    conn.release();
+    const rows = await AppDataSource.manager.find(RecurringTransactionModel, {
+        where: whereOptions,
+        order: {
+            active: 'DESC',
+            id: 'DESC',
+        },
+    });
 
     const categoriesLookup = await getCategoriesLookup(organizationId);
     let recurringTransactions: RecurringTransaction[] = [];
-    for (const recurring of dbRecurring) {
+    for (const recurring of rows) {
         recurringTransactions.push({
             id: recurring.uuid,
-            active: recurring.active !== 0,
+            active: recurring.active,
             insertTimestamp: recurring.insert_timestamp,
             timezone: recurring.timezone,
             executionPolicy: recurring.execution_policy,
             executionPolicyData: recurring.execution_policy_data ?? {},
             firstExecution: recurring.first_execution,
             nextExecution: recurring.next_execution,
-            lastExecution: recurring.last_execution,
+            lastExecution: recurring.last_execution ?? undefined,
             category: categoriesLookup[recurring.category_id] ?? '[ERROR]',
             value: recurring.value,
-            value19: recurring.value19,
-            value7: recurring.value7,
-            vat19: recurring.vat19,
-            vat7: recurring.vat7,
-            note: recurring.note,
+            value19: recurring.value19 ?? undefined,
+            value7: recurring.value7 ?? undefined,
+            vat19: recurring.vat19 ?? undefined,
+            vat7: recurring.vat7 ?? undefined,
+            note: recurring.note ?? undefined,
         });
     }
 
@@ -210,56 +181,52 @@ export async function getRecurringTransactions(organizationId: string, nextExecu
 export async function insertRecurringTransaction(organizationId: string, recurring: RecurringTransaction): Promise<number> {
     const lookup = await getCategoriesReverseLookup(organizationId);
 
-    const conn = await getConnection();
-    const [result] = await conn.query<ResultSetHeader>(
-        'INSERT INTO cantropee.recurring_transactions' +
-        ' (organization_uuid, timezone, execution_policy, execution_policy_data,' +
-        ' first_execution, next_execution, last_execution, category_id,' +
-        ' value, value19, value7, vat19, vat7, note)' +
-        'VALUES (UUID_TO_BIN(?),?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [
-            organizationId,
-            recurring.timezone,
-            recurring.executionPolicy,
-            JSON.stringify(recurring.executionPolicyData),
-            recurring.firstExecution,
-            recurring.firstExecution, // this is on purpose
-            recurring.lastExecution,
-            lookup[recurring.category] ?? 0,
-            recurring.value,
-            recurring.value19 !== 0 ? recurring.value19 : null,
-            recurring.value7 !== 0 ? recurring.value7 : null,
-            recurring.vat19 !== 0 ? recurring.vat19 : null,
-            recurring.vat7 !== 0 ? recurring.vat7 : null,
-            recurring.note,
-        ]
-    );
+    const model = new RecurringTransactionModel();
+    model.organization_uuid = organizationId;
+    model.timezone = recurring.timezone;
+    model.execution_policy = recurring.executionPolicy;
+    model.execution_policy_data = recurring.executionPolicyData;
+    model.first_execution = recurring.firstExecution;
+    model.next_execution = recurring.firstExecution;// on purpose
+    if (recurring.lastExecution) {
+        model.last_execution = recurring.lastExecution;
+    }
+    model.category_id = lookup[recurring.category] ?? 0;
+    model.value = recurring.value;
+    if (recurring.value19) {
+        model.value19 = recurring.value19;
+    }
+    if (recurring.value7) {
+        model.value7 = recurring.value7;
+    }
+    if (recurring.vat19) {
+        model.vat19 = recurring.vat19;
+    }
+    if (recurring.vat7) {
+        model.vat7 = recurring.vat7;
+    }
+    if (recurring.note) {
+        model.note = recurring.note;
+    }
+    await AppDataSource.manager.save(model);
 
-    return result.insertId;
+    return model.id;
 }
 
-async function setRecurringTransactionInactive(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction): Promise<boolean> {
-    const [dbUpdate] = await conn.execute<ResultSetHeader>(
-        'UPDATE cantropee.recurring_transactions' +
-        ' SET active=false' +
-        ' WHERE organization_uuid=UUID_TO_BIN(?)' +
-        ' AND uuid=UUID_TO_BIN(?)',
-        [organizationId, recurring.id]
-    );
-
-    return dbUpdate.affectedRows === 1;
+async function setRecurringTransactionInactive(transaction: EntityManager, organizationId: string, recurring: RecurringTransaction): Promise<void> {
+    const model = new RecurringTransactionModel();
+    model.organization_uuid = organizationId;
+    model.uuid = recurring.id;
+    model.active = false;
+    await transaction.save(model);
 }
 
-export async function updateRecurringTransactionNextExecution(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction): Promise<boolean> {
-    const [dbUpdate] = await conn.execute<ResultSetHeader>(
-        'UPDATE cantropee.recurring_transactions' +
-        ' SET next_execution=?' +
-        ' WHERE organization_uuid=UUID_TO_BIN(?)' +
-        ' AND uuid=UUID_TO_BIN(?)',
-        [recurring.nextExecution, organizationId, recurring.id]
-    );
-
-    return dbUpdate.affectedRows === 1;
+export async function updateRecurringTransactionNextExecution(transaction: EntityManager, organizationId: string, recurring: RecurringTransaction): Promise<void> {
+    const model = new RecurringTransactionModel();
+    model.organization_uuid = organizationId;
+    model.uuid = recurring.id;
+    model.next_execution = recurring.nextExecution;
+    await transaction.save(model);
 }
 
 const leapToNextExecution = (recurring: RecurringTransaction): Date => {
@@ -282,33 +249,27 @@ export async function bookPendingRecurringTransactions(organizationId: string, p
     const now = new Date();
     let pending = await getRecurringTransactions(organizationId, now);
 
-    const conn = await getConnection();
-    try {
-        for (const recurring of pending) {
-            const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(conn, recurring));
+    for (const recurring of pending) {
+        await AppDataSource.manager.transaction(async transaction => {
+            const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(AppDataSource.manager, recurring));
 
-            newIds = newIds.concat(await bookTransactions(conn, organizationId, recurring, pendingTransactionDates));
+            newIds = newIds.concat(await bookTransactions(transaction, organizationId, recurring, pendingTransactionDates));
 
-            if (!await updateRecurringTransactionNextExecution(conn, organizationId, recurring)) {
-                console.error('Uh oh, could not update recurring transaction: ' + JSON.stringify(recurring));
-            }
+            await updateRecurringTransactionNextExecution(transaction, organizationId, recurring);
 
-            newIds = newIds.concat(await prebookTransactions(conn, organizationId, recurring, pendingTransactionDates, previewCount));
-        }
-    } finally {
-        conn.release();
+            newIds = newIds.concat(await prebookTransactions(transaction, organizationId, recurring, pendingTransactionDates, previewCount));
+        });
     }
 
     return newIds;
 }
 
 export async function ensureRecurringPrebooked(organizationId: string, recurring: RecurringTransaction, previewCount: number): Promise<string[]> {
-    const conn = await getConnection();
-    const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(conn, recurring));
-    return prebookTransactions(conn, organizationId, recurring, pendingTransactionDates, previewCount);
+    const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(AppDataSource.manager, recurring));
+    return prebookTransactions(AppDataSource.manager, organizationId, recurring, pendingTransactionDates, previewCount);
 }
 
-export async function bookTransactions(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction, prebookedDates: Date[]): Promise<string[]> {
+export async function bookTransactions(transaction: EntityManager, organizationId: string, recurring: RecurringTransaction, prebookedDates: Date[]): Promise<string[]> {
     let newIds: string[] = [];
     const now = new Date();
 
@@ -319,7 +280,7 @@ export async function bookTransactions(conn: PoolConnection, organizationId: str
             continue;
         }
 
-        const id = await bookTransactionFromRecurring(conn, organizationId, recurring);
+        const id = await bookTransactionFromRecurring(transaction, organizationId, recurring);
         if (!id) {
             break;
         }
@@ -328,9 +289,7 @@ export async function bookTransactions(conn: PoolConnection, organizationId: str
         recurring.nextExecution = leapToNextExecution(recurring);
         if (recurring.lastExecution) {
             if (recurring.nextExecution > recurring.lastExecution) {
-                if (!await setRecurringTransactionInactive(conn, organizationId, recurring)) {
-                    console.error('Could not invalidate recurring transactions that leaped over lastExecution');
-                }
+                await setRecurringTransactionInactive(transaction, organizationId, recurring);
                 break;
             }
         }
@@ -339,7 +298,7 @@ export async function bookTransactions(conn: PoolConnection, organizationId: str
     return newIds;
 }
 
-export async function prebookTransactions(conn: PoolConnection, organizationId: string, recurring: RecurringTransaction, prebookedDates: Date[], previewCount: number): Promise<string[]> {
+export async function prebookTransactions(transaction: EntityManager, organizationId: string, recurring: RecurringTransaction, prebookedDates: Date[], previewCount: number): Promise<string[]> {
     let newIds: string[] = [];
 
     if (previewCount > 0) {
@@ -355,7 +314,7 @@ export async function prebookTransactions(conn: PoolConnection, organizationId: 
                 continue;
             }
 
-            const id = await bookTransactionFromRecurring(conn, organizationId, recurring);
+            const id = await bookTransactionFromRecurring(transaction, organizationId, recurring);
             if (!id) {
                 break;
             }
@@ -374,57 +333,46 @@ export async function prebookTransactions(conn: PoolConnection, organizationId: 
 }
 
 export async function deleteRecurringTransaction(organizationId: string, recurringTransactionId: string, cascade: boolean = false): Promise<boolean> {
-    const conn = await getConnection();
-    try {
-        await conn.query('START TRANSACTION');
-
+    await AppDataSource.manager.transaction(async transaction => {
         if (cascade) {
-            const [_] = await conn.query<ResultSetHeader>(
-                'UPDATE cantropee.transactions SET active = false' +
-                ' WHERE organization_uuid = UUID_TO_BIN(?)' +
-                ' AND uuid IN (' +
-                '   SELECT transaction_uuid FROM cantropee.recurring_booked WHERE recurring_uuid = UUID_TO_BIN(?))',
-                [organizationId, recurringTransactionId]
-            );
+            const subquery = transaction.createQueryBuilder()
+                .select('transaction_uuid')
+                .from(RecurringBookedModel, 'r')
+                .where('recurring_uuid = UUID_TO_BIN(:recurring_id)', {recurring_id: recurringTransactionId});
 
-            if (!(await invalidateAllBalances(conn, organizationId))) {
-                await conn.query('ROLLBACK');
-                return false;
-            }
+            const updateQuery = transaction.createQueryBuilder()
+                .update(TransactionModel)
+                .set({
+                    active: false
+                })
+                .where('organization_uuid = UUID_TO_BIN(:orgId)', {orgId: organizationId})
+                .andWhere('uuid IN (' + subquery.getQuery() + ')')
+                .setParameters(subquery.getParameters());
+
+
+            await updateQuery.execute();
+
+            await invalidateAllBalances(transaction, organizationId);
         }
 
-        const [updateRecurring] = await conn.query<ResultSetHeader>(
-            'UPDATE cantropee.recurring_transactions SET active = false' +
-            ' WHERE uuid = UUID_TO_BIN(?)' +
-            ' AND organization_uuid = UUID_TO_BIN(?)',
-            [recurringTransactionId, organizationId]
-        );
+        const model = new RecurringTransactionModel();
+        model.organization_uuid = organizationId;
+        model.uuid = recurringTransactionId;
+        model.active = false;
+        await transaction.save(model);
+    });
 
-        if (updateRecurring.affectedRows !== 1) {
-            await conn.query('ROLLBACK');
-            return false;
-        }
-
-        await conn.query('COMMIT')
-        return true;
-    } catch {
-        await conn.query('ROLLBACK');
-    } finally {
-        conn.release();
-    }
-
-    return false;
+    return true;
 }
 
-export async function getPendingTransactionDatesForRecurring(conn: PoolConnection, recurring: RecurringTransaction): Promise<Date[]> {
-    const [rows] = await conn.query<RecurringTransactionLinkEffectiveDate[]>(
-        'SELECT T.effective_timestamp AS effective_timestamp' +
-        ' FROM cantropee.recurring_booked B' +
-        ' INNER JOIN cantropee.transactions T ON B.transaction_uuid=T.uuid' +
-        ' WHERE B.recurring_uuid = UUID_TO_BIN(?)' +
-        ' AND T.effective_timestamp > NOW()',
-        [recurring.id]
-    );
+export async function getPendingTransactionDatesForRecurring(transaction: EntityManager, recurring: RecurringTransaction): Promise<Date[]> {
+    const rows = await transaction.createQueryBuilder()
+        .select('t.effective_timestamp', 'effective_timestamp')
+        .from(RecurringBookedModel, 'b')
+        .innerJoin(TransactionModel, 't', 'b.transaction_uuid=t.uuid')
+        .where('b.recurring_uuid = UUID_TO_BIN(:id)', {id: recurring.id})
+        .andWhere('t.effective_timestamp > NOW()')
+        .execute();
 
     let dates: Date[] = [];
     for (const row of rows) {
@@ -434,13 +382,14 @@ export async function getPendingTransactionDatesForRecurring(conn: PoolConnectio
     return dates;
 }
 
-export async function updateTransactionLink(conn: PoolConnection, oldId: string, newId: string): Promise<boolean> {
-    let [result] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.recurring_booked' +
-        ' SET transaction_uuid=UUID_TO_BIN(?)' +
-        ' WHERE transaction_uuid=UUID_TO_BIN(?)',
-        [newId, oldId]
-    );
-
-    return result.affectedRows > 0;
+export async function updateTransactionLink(transaction: EntityManager, oldId: string, newId: string): Promise<void> {
+    await transaction.createQueryBuilder()
+        .update(RecurringBookedModel)
+        .set({
+            transaction_uuid: newId,
+        })
+        .where({
+            transaction_uuid: oldId,
+        })
+        .execute();
 }

@@ -1,26 +1,87 @@
-import {RowDataPacket} from 'mysql2/promise';
+import {Column, Entity, JoinColumn, OneToMany, PrimaryColumn} from "typeorm";
+import {TransformUuid} from "../core/transform";
+import {RecurringBookedModel} from "./recurring-booked-model";
 
-export interface RecurringTransactionModel extends RowDataPacket {
-    id: number;
-    uuid: string;
-    organization_uuid: string;
-    insert_timestamp: Date;
-    active: number;
-    timezone: string;
-    execution_policy: number;
-    execution_policy_data: object | undefined;
-    first_execution: Date;
-    next_execution: Date;
-    last_execution: Date | undefined;
-    category_id: number;
-    value: number;
-    value19: number | undefined;
-    value7: number | undefined;
-    vat19: number | undefined;
-    vat7: number | undefined;
-    note: string | undefined;
-}
 
-export interface RecurringTransactionLinkEffectiveDate extends RowDataPacket {
-    effective_timestamp: Date;
+@Entity({
+    name: 'recurring_transactions'
+})
+export class RecurringTransactionModel {
+    @Column()
+    id!: number;
+
+    @PrimaryColumn({
+        type: 'binary',
+        length: 16,
+        transformer: TransformUuid,
+    })
+    uuid!: string;
+
+    @PrimaryColumn({
+        type: 'binary',
+        length: 16,
+        transformer: TransformUuid,
+    })
+    organization_uuid!: string;
+
+    @Column()
+    insert_timestamp!: Date;
+
+    @Column()
+    active!: boolean;
+
+    @Column()
+    timezone!: string;
+
+    @Column()
+    execution_policy!: number;
+
+    @Column({type: 'json'})
+    execution_policy_data!: object | null;
+
+    @Column()
+    first_execution!: Date;
+
+    @Column()
+    next_execution!: Date;
+
+    @Column({
+        nullable: true,
+    })
+    last_execution?: Date;
+
+    @Column()
+    category_id!: number;
+
+    @Column()
+    value!: number;
+
+    @Column({
+        nullable: true
+    })
+    value19?: number;
+
+    @Column({
+        nullable: true
+    })
+    value7?: number;
+
+    @Column({
+        nullable: true
+    })
+    vat19?: number;
+
+    @Column({
+        nullable: true
+    })
+    vat7?: number;
+
+    @Column({
+        nullable: true
+    })
+    note?: string;
+
+    @OneToMany(() => RecurringBookedModel, m => m.recurringTransaction)
+    @JoinColumn({name: 'uuid', referencedColumnName: 'recurring_uuid'})
+    bookedTransactions!: RecurringBookedModel;
 }

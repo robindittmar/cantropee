@@ -1,10 +1,14 @@
+import 'reflect-metadata';
 import dotenv from 'dotenv';
+
+const conf = dotenv.config();
+
 import logger from 'morgan';
 import express, {Request, Response, NextFunction} from 'express';
 import cookieParser from "cookie-parser";
 import {ServerError} from "./core/server-error";
 import {validateSession} from "./services/session-service";
-import {initDatabaseConnection} from "./core/database";
+import {AppDataSource} from "./core/database";
 import {housekeep} from "./services/housekeep-service";
 import {loginRouter} from "./routes/login-route";
 import {logoutRouter} from "./routes/logout-route";
@@ -19,10 +23,9 @@ import {sessionRouter} from "./routes/session-route";
 
 
 async function main() {
-    let conf = dotenv.config();
     console.log(`$ initializing with ${JSON.stringify(conf.parsed)}`);
 
-    initDatabaseConnection();
+    await AppDataSource.initialize();
 
     await housekeep();
 

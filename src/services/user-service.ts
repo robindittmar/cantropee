@@ -1,9 +1,9 @@
-import {getConnection} from "../core/database";
+import {AppDataSource} from "../core/database";
 import * as bcrypt from 'bcrypt';
-import {OrgUserModel, UserModel} from "../models/user-model";
-import {ResultSetHeader} from "mysql2";
+import {UserModel} from "../models/user-model";
 import {Organization, getOrganizationsForUser} from "./organization-service";
-import {CountAllResult} from "../models/transaction-model";
+import {OrganizationUserModel} from "../models/organization-user-model";
+import {UserSettingsModel} from "../models/user-settings-model";
 
 export interface User {
     id: string;
@@ -28,92 +28,85 @@ export interface OrgUser {
 
 
 export async function getUserById(id: string): Promise<User> {
-    const conn = await getConnection();
-    const [dbUsers] = await conn.query<UserModel[]>(
-        'SELECT BIN_TO_UUID(U.uuid) AS uuid, email, password,' +
-        '       BIN_TO_UUID(default_organization_uuid) AS default_organization_uuid,' +
-        '       private_mode, default_preview_pending,' +
-        '       default_sorting_order_asc, extra' +
-        ' FROM cantropee.users U' +
-        ' INNER JOIN cantropee.user_settings S ON U.uuid=S.user_uuid' +
-        ' WHERE U.uuid = UUID_TO_BIN(?)',
-        [id]
-    );
-    conn.release();
+    const user = await AppDataSource.manager.findOne(UserModel, {
+        where: {
+            uuid: id
+        }
+    });
 
-    if (dbUsers[0] === undefined) {
+    if (user === null) {
         throw new Error('What the fuck?');
     }
 
-    let dbUser = dbUsers[0];
     return {
-        id: dbUser.uuid,
-        email: dbUser.email,
+        id: user.uuid,
+        email: user.email,
         settings: {
-            defaultOrganization: dbUser.default_organization_uuid,
-            privateMode: dbUser.private_mode !== 0,
-            defaultPreviewPending: dbUser.default_preview_pending !== 0,
-            defaultSortingOrderAsc: dbUser.default_sorting_order_asc !== 0,
-            extra: dbUser.extra,
+            defaultOrganization: user.settings.default_organization_uuid,
+            privateMode: user.settings.private_mode,
+            defaultPreviewPending: user.settings.default_preview_pending,
+            defaultSortingOrderAsc: user.settings.default_sorting_order_asc,
+            extra: user.settings.extra,
         },
-        organizations: await getOrganizationsForUser(dbUser.uuid),
+        organizations: await getOrganizationsForUser(user.uuid),
     };
 }
 
 export async function getUserByEmail(email: string): Promise<[User, string, boolean]> {
-    const conn = await getConnection();
-    const [dbUsers] = await conn.query<UserModel[]>(
-        'SELECT BIN_TO_UUID(U.uuid) AS uuid, email, password, require_password_change,' +
-        '       BIN_TO_UUID(default_organization_uuid) AS default_organization_uuid,' +
-        '       private_mode, default_preview_pending,' +
-        '       default_sorting_order_asc, extra' +
-        ' FROM cantropee.users U' +
-        ' INNER JOIN cantropee.user_settings S ON U.uuid=S.user_uuid' +
-        ' WHERE U.email = ?',
-        [email]
-    );
-    conn.release();
+    const model = await AppDataSource.manager.findOne(UserModel, {
+        select: {
+            id: true,
+            uuid: true,
+            email: true,
+            password: true,
+            require_password_change: true,
+            insert_timestamp: true,
+        },
+        where: {
+            email: email
+        }
+    });
 
-    if (dbUsers[0] === undefined) {
+    if (model === null) {
         throw new Error('User was not found');
     }
 
-    let dbUser = dbUsers[0];
     const user: User = {
-        id: dbUser.uuid,
-        email: dbUser.email,
+        id: model.uuid,
+        email: model.email,
         settings: {
-            defaultOrganization: dbUser.default_organization_uuid,
-            privateMode: dbUser.private_mode !== 0,
-            defaultPreviewPending: dbUser.default_preview_pending !== 0,
-            defaultSortingOrderAsc: dbUser.default_sorting_order_asc !== 0,
-            extra: dbUser.extra,
+            defaultOrganization: model.settings.default_organization_uuid,
+            privateMode: model.settings.private_mode,
+            defaultPreviewPending: model.settings.default_preview_pending,
+            defaultSortingOrderAsc: model.settings.default_sorting_order_asc,
+            extra: model.settings.extra,
         },
-        organizations: await getOrganizationsForUser(dbUser.uuid),
+        organizations: await getOrganizationsForUser(model.uuid),
     };
 
-    return [user, dbUser.password, dbUser.require_password_change !== 0];
+    return [user, model.password, model.require_password_change !== 0];
 }
 
 export async function getUsersByOrganization(organizationId: string): Promise<OrgUser[]> {
-    const conn = await getConnection();
-    const [dbUsers] = await conn.query<OrgUserModel[]>(
-        'SELECT BIN_TO_UUID(U.uuid) AS uuid, U.email AS email, R.name AS role' +
-        ' FROM cantropee.organization_users OU' +
-        ' INNER JOIN cantropee.users U ON OU.user_uuid=U.uuid' +
-        ' INNER JOIN cantropee.roles R ON OU.role_uuid=R.uuid' +
-        ' WHERE OU.organization_uuid = UUID_TO_BIN(?)' +
-        ' ORDER BY OU.insert_timestamp DESC, OU.user_uuid',
-        [organizationId]
-    );
-    conn.release();
+    const relations = await AppDataSource.manager.find(OrganizationUserModel, {
+        where: {
+            organization_uuid: organizationId
+        },
+        relations: {
+            user: true,
+            role: true,
+        },
+        order: {
+            insert_timestamp: 'DESC'
+        }
+    });
 
     const orgUsers: OrgUser[] = [];
-    for (const dbUser of dbUsers) {
+    for (const model of relations) {
         orgUsers.push({
-            id: dbUser.uuid,
-            email: dbUser.email,
-            role: dbUser.role,
+            id: model.user_uuid,
+            email: model.user.email,
+            role: model.role.name,
         });
     }
 
@@ -121,56 +114,35 @@ export async function getUsersByOrganization(organizationId: string): Promise<Or
 }
 
 export async function countUsersByRole(organizationId: string, roleId: string): Promise<number> {
-    const conn = await getConnection();
-    const [result] = await conn.query<CountAllResult[]>(
-        'SELECT COUNT(U.id) AS count FROM cantropee.organization_users OU' +
-        ' INNER JOIN cantropee.users U ON OU.user_uuid=U.uuid' +
-        ' INNER JOIN cantropee.roles R ON OU.role_uuid=R.uuid' +
-        ' WHERE OU.organization_uuid=UUID_TO_BIN(?)' +
-        ' AND R.uuid=UUID_TO_BIN(?)',
-        [organizationId, roleId]
-    );
-    conn.release();
-
-    return result[0]?.count ?? 0;
+    return AppDataSource.manager.count(OrganizationUserModel, {
+        where: {
+            organization_uuid: organizationId,
+            role_uuid: roleId,
+        }
+    });
 }
 
 export async function updateUserPassword(user: User, password: string): Promise<boolean> {
     const passwordHash = await bcrypt.hash(password, 4);
 
-    const conn = await getConnection();
-    const [update] = await conn.query<ResultSetHeader>(
-        'UPDATE cantropee.users SET password=?, require_password_change=false' +
-        ' WHERE uuid=UUID_TO_BIN(?)',
-        [passwordHash, user.id]
-    );
-    conn.release();
+    const model = new UserModel();
+    model.uuid = user.id;
+    model.password = passwordHash;
+    model.require_password_change = 0;
+    await AppDataSource.manager.save(model);
 
-    return update.affectedRows === 1;
+    return true;
 }
 
 export async function updateUserSettings(user: User): Promise<boolean> {
-    try {
-        const conn = await getConnection();
-        const [result] = await conn.query<ResultSetHeader>(
-            'UPDATE cantropee.user_settings SET default_organization_uuid=UUID_TO_BIN(?),' +
-            '                                   private_mode=?,' +
-            '                                   default_preview_pending=?,' +
-            '                                   default_sorting_order_asc=?,' +
-            '                                   extra=?' +
-            ' WHERE user_uuid = UUID_TO_BIN(?)',
-            [
-                user.settings.defaultOrganization,
-                user.settings.privateMode,
-                user.settings.defaultPreviewPending,
-                user.settings.defaultSortingOrderAsc,
-                user.settings.extra,
-                user.id,
-            ]
-        );
+    const model = new UserSettingsModel();
+    model.user_uuid = user.id;
+    model.default_organization_uuid = user.settings.defaultOrganization;
+    model.private_mode = user.settings.privateMode;
+    model.default_preview_pending = user.settings.defaultPreviewPending;
+    model.default_sorting_order_asc = user.settings.defaultSortingOrderAsc;
+    model.extra = user.settings.extra;
+    await AppDataSource.manager.save(model);
 
-        return result.affectedRows === 1;
-    } catch {
-        return false;
-    }
+    return true;
 }
