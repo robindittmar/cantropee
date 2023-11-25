@@ -7,6 +7,7 @@ import moment from 'moment-timezone';
 import {EntityManager, LessThanOrEqual} from "typeorm";
 import {RecurringBookedModel} from "../models/recurring-booked-model";
 import {TransactionModel} from "../models/transaction-model";
+import {ServerError} from "../core/server-error";
 
 export enum ExecutionPolicy {
     StartOfMonth,
@@ -251,7 +252,7 @@ export async function bookPendingRecurringTransactions(organizationId: string, p
 
     for (const recurring of pending) {
         await AppDataSource.manager.transaction(async transaction => {
-            const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(AppDataSource.manager, recurring));
+            const pendingTransactionDates = (await getPendingTransactionDatesForRecurring(transaction, recurring));
 
             newIds = newIds.concat(await bookTransactions(transaction, organizationId, recurring, pendingTransactionDates));
 
@@ -310,16 +311,15 @@ export async function prebookTransactions(transaction: EntityManager, organizati
         const prebookedTimes = prebookedDates.map(d => d.getTime());
 
         for (let i = 0; i < previewCount; i++) {
-            if (prebookedTimes.includes(recurring.nextExecution.getTime())) {
-                continue;
+            if (!prebookedTimes.includes(recurring.nextExecution.getTime())) {
+                const id = await bookTransactionFromRecurring(transaction, organizationId, recurring);
+                if (!id) {
+                    break;
+                }
+
+                newIds.push(id);
             }
 
-            const id = await bookTransactionFromRecurring(transaction, organizationId, recurring);
-            if (!id) {
-                break;
-            }
-
-            newIds.push(id);
             recurring.nextExecution = leapToNextExecution(recurring);
             if (recurring.lastExecution) {
                 if (recurring.nextExecution > recurring.lastExecution) {
@@ -337,20 +337,10 @@ export async function deleteRecurringTransaction(organizationId: string, recurri
 
         const subquery = transaction.createQueryBuilder()
             .select('transaction_uuid')
-            .from(RecurringBookedModel, 'b');
-        if (cascade) {
-            subquery
-                .where('b.recurring_uuid = UUID_TO_BIN(:recurring_id)', {recurring_id: recurringTransactionId});
-        } else {
-            // If we do not cascade delete we still need to
-            // deactivate "preview/prebooked" transactions
-            subquery
-                .leftJoin(TransactionModel, 't', 'b.transaction_uuid=t.uuid')
-                .where('b.recurring_uuid = UUID_TO_BIN(:recurring_id)', {recurring_id: recurringTransactionId})
-                .andWhere('t.effective_timestamp > NOW()');
-        }
+            .from(RecurringBookedModel, 'b')
+            .where('b.recurring_uuid = UUID_TO_BIN(:recurring_id)', {recurring_id: recurringTransactionId});
 
-        const updateQuery = transaction.createQueryBuilder()
+        let updateQuery = transaction.createQueryBuilder()
             .update(TransactionModel)
             .set({
                 active: false
@@ -359,6 +349,9 @@ export async function deleteRecurringTransaction(organizationId: string, recurri
             .andWhere('uuid IN (' + subquery.getQuery() + ')')
             .setParameters(subquery.getParameters());
 
+        if (!cascade) {
+            updateQuery.andWhere('effective_timestamp > NOW()');
+        }
 
         const result = await updateQuery.execute();
 
@@ -366,9 +359,16 @@ export async function deleteRecurringTransaction(organizationId: string, recurri
             await invalidateAllBalances(transaction, organizationId);
         }
 
-        const model = new RecurringTransactionModel();
-        model.organization_uuid = organizationId;
-        model.uuid = recurringTransactionId;
+        const model = await transaction.findOne(RecurringTransactionModel, {
+            where: {
+                organization_uuid: organizationId,
+                uuid: recurringTransactionId,
+            },
+        });
+        if (!model) {
+            throw new ServerError(404, 'Recurring transaction not found')
+        }
+
         model.active = false;
         await transaction.save(model);
     });
