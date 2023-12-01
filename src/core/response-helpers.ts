@@ -10,10 +10,10 @@ export const badRequest = (res: Response, missingFieldName: string) => {
 };
 
 export const unauthorized = (res: Response) => {
-    res.status(403);
+    res.status(401);
     res.send({
         success: false,
-        code: 403,
+        code: 401,
         message: 'You have insufficient rights to perform this action',
     });
 };
