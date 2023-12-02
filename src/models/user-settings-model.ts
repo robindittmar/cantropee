@@ -24,6 +24,9 @@ export class UserSettingsModel {
     default_organization_uuid!: string;
 
     @Column()
+    language!: string;
+
+    @Column()
     private_mode!: boolean;
 
     @Column()
