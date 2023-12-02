@@ -212,4 +212,19 @@ create table recurring_booked
 create unique index recurring_booked_recurring_uuid_transaction_uuid_idx
     on recurring_booked (recurring_uuid, transaction_uuid);
 
+create table invites
+(
+    id                BIGINT auto_increment                    not null,
+    uuid              binary(16) default (UUID_TO_BIN(UUID())) not null,
+    insert_timestamp  datetime   default NOW()                 not null,
+    expires_at        datetime                                 not null,
+    accepted_at       datetime                                 null,
+    organization_uuid binary(16)                               null,
+
+    constraint invites_pk
+        primary key (id)
+);
+create unique index invites_invite_id_idx
+    on invites (uuid);
+
 commit;

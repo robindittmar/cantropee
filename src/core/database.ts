@@ -10,6 +10,7 @@ import {SessionModel} from "../models/session-model";
 import {TransactionModel} from "../models/transaction-model";
 import {RecurringBookedModel} from "../models/recurring-booked-model";
 import {RecurringTransactionModel} from "../models/recurring-transaction-model";
+import {InviteModel} from "../models/invite-model";
 
 
 export const AppDataSource: DataSource = new DataSource({
@@ -36,6 +37,7 @@ export const AppDataSource: DataSource = new DataSource({
         TransactionModel,
         UserModel,
         UserSettingsModel,
+        InviteModel,
     ],
     migrations: [],
     subscribers: [],

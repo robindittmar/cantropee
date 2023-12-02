@@ -20,6 +20,7 @@ import {rolesRouter} from "./routes/roles-route";
 import {usersRouter} from "./routes/users-route";
 import {exportRouter} from "./routes/export-route";
 import {sessionRouter} from "./routes/session-route";
+import {inviteRouter} from "./routes/invite-route";
 
 
 async function main() {
@@ -48,10 +49,11 @@ async function main() {
     app.use('/api/users', usersRouter);
     app.use('/api/session', sessionRouter);
     app.use('/api/export', exportRouter);
+    app.use('/api/invite', inviteRouter);
 
     app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
         if (res.headersSent) {
-            return next(err)
+            return next(err);
         }
 
         console.error(err);
