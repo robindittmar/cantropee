@@ -39,17 +39,14 @@ inviteRouter.post('/use', async (req, res, next) => {
             email,
             password,
         } = req.body;
-
-        console.log(req.body);
-        console.log(useTaxes);
-
+        
         if (!inviteId || typeof inviteId !== 'string') {
             throw new ServerError(400, 'inviteId parameter is not string');
         }
         if (!organization || typeof organization !== 'string') {
             throw new ServerError(400, 'organization parameter is not string');
         }
-        if (!useTaxes || typeof useTaxes !== 'boolean') {
+        if (typeof useTaxes !== 'boolean') {
             throw new ServerError(400, 'useTaxes parameter is not boolean');
         }
         if (!email || typeof email !== 'string') {

@@ -2,7 +2,8 @@ import {EntityManager} from "typeorm";
 import {AppDataSource} from "../core/database";
 import {SessionModel} from "../models/session-model";
 import {BalanceModel} from "../models/balance-model";
-import {InviteModel} from "../models/invite-model";
+
+// import {InviteModel} from "../models/invite-model";
 
 
 export async function housekeep() {
@@ -35,11 +36,11 @@ async function deleteDirtyBalances(manager: EntityManager): Promise<void> {
         .execute();
 }
 
-async function deleteUnusedExpiredInvites(manager: EntityManager): Promise<void> {
-    await manager.createQueryBuilder()
-        .delete()
-        .from(InviteModel)
-        .where('organization_uuid IS NULL')
-        .andWhere('expires_at < NOW()')
-        .execute();
-}
+// async function deleteUnusedExpiredInvites(manager: EntityManager): Promise<void> {
+//     await manager.createQueryBuilder()
+//         .delete()
+//         .from(InviteModel)
+//         .where('organization_uuid IS NULL')
+//         .andWhere('expires_at < NOW()')
+//         .execute();
+// }
