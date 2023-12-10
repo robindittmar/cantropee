@@ -40,6 +40,9 @@ inviteRouter.post('/use', async (req, res, next) => {
             password,
         } = req.body;
 
+        console.log(req.body);
+        console.log(useTaxes);
+
         if (!inviteId || typeof inviteId !== 'string') {
             throw new ServerError(400, 'inviteId parameter is not string');
         }
