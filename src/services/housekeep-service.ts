@@ -10,7 +10,7 @@ export async function housekeep() {
     try {
         await deleteOutdatedSessions(AppDataSource.manager);
         await deleteDirtyBalances(AppDataSource.manager);
-        await deleteUnusedExpiredInvites(AppDataSource.manager);
+        // await deleteUnusedExpiredInvites(AppDataSource.manager);
         console.timeEnd('$ housekeeping');
     } catch (err) {
         console.timeEnd('$ housekeeping');
