@@ -25,7 +25,7 @@ export class UserModel {
     password!: string;
 
     @Column({select: false})
-    require_password_change!: number;
+    require_password_change!: boolean;
 
     @Column()
     insert_timestamp!: Date;

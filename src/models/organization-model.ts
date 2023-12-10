@@ -27,7 +27,7 @@ export class OrganizationModel {
     currency!: string;
 
     @Column()
-    uses_taxes!: number;
+    uses_taxes!: boolean;
 
     @Column()
     preview_recurring_count!: number;

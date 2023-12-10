@@ -30,7 +30,7 @@ export const getSessionFromReq = (req: Request): Session => {
 }
 
 export const validateSession = async (req: Request, res: Response, next: NextFunction) => {
-    if (req.path === '/api/login') {
+    if (req.path === '/api/login' || req.path === '/api/invite/use' || req.path === '/api/invite/validate') {
         next();
         return;
     }

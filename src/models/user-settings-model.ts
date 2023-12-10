@@ -24,6 +24,9 @@ export class UserSettingsModel {
     default_organization_uuid!: string;
 
     @Column()
+    can_create_invite!: boolean;
+
+    @Column()
     language!: string;
 
     @Column()

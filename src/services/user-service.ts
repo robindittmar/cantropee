@@ -14,6 +14,7 @@ export interface User {
 
 export interface UserSettings {
     defaultOrganization: string;
+    canCreateInvite: boolean;
     privateMode: boolean;
     defaultPreviewPending: boolean;
     defaultSortingOrderAsc: boolean;
@@ -43,6 +44,7 @@ export async function getUserById(id: string): Promise<User> {
         email: user.email,
         settings: {
             defaultOrganization: user.settings.default_organization_uuid,
+            canCreateInvite: user.settings.can_create_invite,
             privateMode: user.settings.private_mode,
             defaultPreviewPending: user.settings.default_preview_pending,
             defaultSortingOrderAsc: user.settings.default_sorting_order_asc,
@@ -76,6 +78,7 @@ export async function getUserByEmail(email: string): Promise<[User, string, bool
         email: model.email,
         settings: {
             defaultOrganization: model.settings.default_organization_uuid,
+            canCreateInvite: model.settings.can_create_invite,
             privateMode: model.settings.private_mode,
             defaultPreviewPending: model.settings.default_preview_pending,
             defaultSortingOrderAsc: model.settings.default_sorting_order_asc,
@@ -84,7 +87,7 @@ export async function getUserByEmail(email: string): Promise<[User, string, bool
         organizations: await getOrganizationsForUser(model.uuid),
     };
 
-    return [user, model.password, model.require_password_change !== 0];
+    return [user, model.password, model.require_password_change];
 }
 
 export async function getUsersByOrganization(organizationId: string): Promise<OrgUser[]> {
@@ -128,7 +131,7 @@ export async function updateUserPassword(user: User, password: string): Promise<
     const model = new UserModel();
     model.uuid = user.id;
     model.password = passwordHash;
-    model.require_password_change = 0;
+    model.require_password_change = false;
     await AppDataSource.manager.save(model);
 
     return true;

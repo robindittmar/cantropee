@@ -29,7 +29,7 @@ export async function getOrganizationsForUser(userId: string): Promise<Organizat
             id: model.organization.uuid,
             name: model.organization.name,
             currency: model.organization.currency,
-            usesTaxes: model.organization.uses_taxes !== 0,
+            usesTaxes: model.organization.uses_taxes,
             previewRecurringCount: model.organization.preview_recurring_count,
             privileges: model.role.privileges,
         });

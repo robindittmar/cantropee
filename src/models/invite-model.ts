@@ -19,6 +19,13 @@ export class InviteModel {
     @Column()
     insert_timestamp!: Date;
 
+    @Column({
+        type: 'binary',
+        length: 16,
+        transformer: TransformUuid,
+    })
+    issued_by!: string;
+
     @Column()
     expires_at!: Date;
 
