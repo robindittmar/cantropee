@@ -6,6 +6,7 @@ import {RoleModel} from "../models/role-model";
 import {UserModel} from "../models/user-model";
 import {UserSettingsModel} from "../models/user-settings-model";
 import {OrganizationUserModel} from "../models/organization-user-model";
+import {CategoryModel} from "../models/category-model";
 import * as bcrypt from "bcrypt";
 import {randomUUID} from "crypto";
 
@@ -120,6 +121,11 @@ export async function useInvite(inviteId: string, orgName: string, useTaxes: boo
         orgUser.user_uuid = user.uuid;
         orgUser.role_uuid = role.uuid;
         await t.save(orgUser);
+
+        const category = new CategoryModel();
+        category.organization_uuid = org.uuid;
+        category.name = 'Nicht spezifiziert';
+        await t.save(category);
 
         invite.organization_uuid = org.uuid;
         invite.accepted_at = now;
