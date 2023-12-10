@@ -112,6 +112,7 @@ export async function useInvite(inviteId: string, orgName: string, useTaxes: boo
         const userSettings = new UserSettingsModel();
         userSettings.user_uuid = user.uuid;
         userSettings.default_organization_uuid = org.uuid;
+        userSettings.can_create_invite = true;
         await t.save(userSettings);
 
         const orgUser = new OrganizationUserModel();
