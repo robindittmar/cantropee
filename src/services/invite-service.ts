@@ -123,7 +123,7 @@ export async function useInvite(inviteId: string, orgName: string, useTaxes: boo
 
         const category = new CategoryModel();
         category.organization_uuid = org.uuid;
-        category.name = 'Nicht spezifiziert';
+        category.name = 'n/a';
         await t.save(category);
 
         invite.organization_uuid = org.uuid;
