@@ -30,6 +30,9 @@ export class UserSettingsModel {
     language!: string;
 
     @Column()
+    localization!: string;
+
+    @Column()
     private_mode!: boolean;
 
     @Column()

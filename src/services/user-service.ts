@@ -15,6 +15,8 @@ export interface User {
 export interface UserSettings {
     defaultOrganization: string;
     canCreateInvite: boolean;
+    language: string;
+    localization: string;
     privateMode: boolean;
     defaultPreviewPending: boolean;
     defaultSortingOrderAsc: boolean;
@@ -45,6 +47,8 @@ export async function getUserById(id: string): Promise<User> {
         settings: {
             defaultOrganization: user.settings.default_organization_uuid,
             canCreateInvite: user.settings.can_create_invite,
+            language: user.settings.language,
+            localization: user.settings.localization,
             privateMode: user.settings.private_mode,
             defaultPreviewPending: user.settings.default_preview_pending,
             defaultSortingOrderAsc: user.settings.default_sorting_order_asc,
@@ -79,6 +83,8 @@ export async function getUserByEmail(email: string): Promise<[User, string, bool
         settings: {
             defaultOrganization: model.settings.default_organization_uuid,
             canCreateInvite: model.settings.can_create_invite,
+            language: model.settings.language,
+            localization: model.settings.localization,
             privateMode: model.settings.private_mode,
             defaultPreviewPending: model.settings.default_preview_pending,
             defaultSortingOrderAsc: model.settings.default_sorting_order_asc,
@@ -141,6 +147,8 @@ export async function updateUserSettings(user: User): Promise<boolean> {
     const model = new UserSettingsModel();
     model.user_uuid = user.id;
     model.default_organization_uuid = user.settings.defaultOrganization;
+    model.language = user.settings.language;
+    model.localization = user.settings.localization;
     model.private_mode = user.settings.privateMode;
     model.default_preview_pending = user.settings.defaultPreviewPending;
     model.default_sorting_order_asc = user.settings.defaultSortingOrderAsc;
