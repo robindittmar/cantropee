@@ -1,4 +1,4 @@
-import {Column, Entity, PrimaryColumn, PrimaryGeneratedColumn} from "typeorm";
+import {Column, Entity, PrimaryColumn} from "typeorm";
 import {TransformUuid} from "../core/transform";
 
 
@@ -6,7 +6,7 @@ import {TransformUuid} from "../core/transform";
     name: 'user_settings'
 })
 export class UserSettingsModel {
-    @PrimaryGeneratedColumn()
+    @Column()
     id!: number;
 
     @PrimaryColumn({

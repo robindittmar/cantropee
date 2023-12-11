@@ -55,7 +55,7 @@ create table user_settings
     user_uuid                 binary(16)                 not null,
     default_organization_uuid binary(16)                 not null,
     can_create_invite         boolean    default false   not null,
-    language                  varchar(8) default 'en-US' not null,
+    language                  varchar(8) default 'en-us' not null,
     private_mode              boolean    default false   not null,
     default_preview_pending   boolean    default false   not null,
     default_sorting_order_asc boolean    default false   not null,
