@@ -92,8 +92,7 @@ export async function useInvite(inviteId: string, orgName: string, useTaxes: boo
         org.name = orgName;
         org.currency = 'EUR';
         org.uses_taxes = useTaxes;
-        org.preview_recurring_count = 6;
-        org.uses_taxes = false;
+        org.preview_recurring_count = 3;
         await t.save(org);
 
         const role = new RoleModel();
