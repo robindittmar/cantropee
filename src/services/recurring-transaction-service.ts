@@ -33,6 +33,7 @@ export interface RecurringTransaction {
     note: string | undefined;
 }
 
+const SYSTEM_USER_UUID = process.env['SYSTEM_USER_UUID'] ?? 'c91d3ebb-06e1-413c-ba1d-f3fcac98e198';
 const makeTransactionFromRecurring = (recurring: RecurringTransaction): Transaction => {
     return {
         id: '',
@@ -55,7 +56,7 @@ const bookTransactionFromRecurring = async (manager: EntityManager, organization
     let t = makeTransactionFromRecurring(recurring);
     let resultId: string = '';
 
-    let transactionId = await insertTransaction(manager, organizationId, t);
+    let transactionId = await insertTransaction(manager, organizationId, SYSTEM_USER_UUID, t);
     if (transactionId === 0) {
         throw new Error('Error writing transaction, rolled back.' + t);
     }

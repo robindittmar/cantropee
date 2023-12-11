@@ -281,7 +281,7 @@ export async function getAllTransactions(organizationId: string): Promise<Transa
     return transactions;
 }
 
-export async function insertTransaction(transaction: EntityManager, organizationId: string, t: Transaction) {
+export async function insertTransaction(transaction: EntityManager, organizationId: string, userId: string, t: Transaction) {
     const categoriesReverseLookup = await getCategoriesReverseLookup(organizationId);
     if (!(t.category in categoriesReverseLookup)) {
         throw new ServerError(400, `invalid category: '${t.category}'`);
@@ -294,6 +294,7 @@ export async function insertTransaction(transaction: EntityManager, organization
 
     const model = new TransactionModel();
     model.organization_uuid = organizationId;
+    model.created_by_uuid = userId;
     model.effective_timestamp = t.effectiveTimestamp;
     model.ref_uuid = t.refId ?? null;
     model.category_id = categoryId;
@@ -359,7 +360,9 @@ async function updatePreviousVersions(transaction: EntityManager, oldId: string,
         .execute();
 }
 
-export async function updateTransaction(organizationId: string, t: Transaction): Promise<{ id: string }> {
+export async function updateTransaction(organizationId: string, userId: string, t: Transaction): Promise<{
+    id: string
+}> {
     let oldId = t.id;
     let oldTransaction = await getTransaction(organizationId, oldId);
 
@@ -370,7 +373,7 @@ export async function updateTransaction(organizationId: string, t: Transaction):
     let newId: string = '';
     await AppDataSource.manager.transaction(async manager => {
         t.refId = oldId;
-        const id = await insertTransaction(manager, organizationId, t);
+        const id = await insertTransaction(manager, organizationId, userId, t);
         let newTransaction = await getTransactionByDatabaseId(manager, organizationId, id);
         newId = newTransaction.id;
 

@@ -135,7 +135,7 @@ transactionsRouter.post('/', async (req, res, next) => {
             throw new ServerError(400, 'field "note" is too long (128 characters)');
         }
 
-        let result = await insertTransaction(AppDataSource.manager, session.organization.id, transaction);
+        let result = await insertTransaction(AppDataSource.manager, session.organization.id, session.user.id, transaction);
 
         res.send({success: result !== 0});
     } catch (err) {
@@ -168,7 +168,7 @@ transactionsRouter.put('/', async (req, res, next) => {
             throw new ServerError(400, 'field "note" is too long (128 characters)');
         }
 
-        let result = await updateTransaction(session.organization.id, transaction);
+        let result = await updateTransaction(session.organization.id, session.user.id, transaction);
         res.send(result);
     } catch (err) {
         next(err);
