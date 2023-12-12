@@ -18,7 +18,7 @@ export const AppDataSource: DataSource = new DataSource({
     host: process.env['NODE_ENV'] === 'development' ? 'localhost' : 'mysql',
     port: 3306,
     timezone: 'Z',
-    supportBigNumbers: true,
+    supportBigNumbers: false,
     maxQueryExecutionTime: 5000,
     poolSize: 10,
     username: 'ctp_svc_usr',

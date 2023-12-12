@@ -1,4 +1,4 @@
-import {Column, Entity, PrimaryColumn, PrimaryGeneratedColumn} from "typeorm";
+import {Column, Entity, PrimaryColumn} from "typeorm";
 import {TransformUuid} from "../core/transform";
 
 
@@ -6,7 +6,7 @@ import {TransformUuid} from "../core/transform";
     name: 'balance',
 })
 export class BalanceModel {
-    @PrimaryGeneratedColumn()
+    @Column()
     id!: number;
 
     @PrimaryColumn({
@@ -19,10 +19,10 @@ export class BalanceModel {
     @Column()
     insert_timestamp!: Date;
 
-    @Column()
+    @PrimaryColumn()
     effective_from!: Date;
 
-    @Column()
+    @PrimaryColumn()
     effective_to!: Date;
 
     @Column()

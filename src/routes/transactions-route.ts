@@ -11,6 +11,7 @@ import {getBalance} from "../services/balance-service";
 import {getSessionFromReq} from "../services/session-service";
 import {AppDataSource} from "../core/database";
 import {ServerError} from "../core/server-error";
+import moment from "moment-timezone";
 
 export const transactionsRouter = express.Router();
 
@@ -30,10 +31,10 @@ transactionsRouter.get('/', async (req, res, next) => {
             note,
         } = req.query;
         if (typeof from !== 'string') {
-            throw new ServerError(400, 'field "from" is missing from query');
+            from = '1980-01-01T00:00:00';
         }
         if (typeof to !== 'string') {
-            throw new ServerError(400, 'field "to" is missing from query');
+            to = moment(new Date()).endOf('year').toISOString();
         }
         if (typeof start !== 'string') {
             throw new ServerError(400, 'field "start" is missing from query');
@@ -49,6 +50,7 @@ transactionsRouter.get('/', async (req, res, next) => {
         const offsetInt = parseInt(count);
         const effectiveFrom = new Date(from);
         let effectiveTo = new Date(to);
+        let originalEffectiveTo = new Date(effectiveTo);
         let reverseOrder = order === 'asc';
         const excludePending = pending === 'false';
         let categoryFilter = undefined;
@@ -75,7 +77,7 @@ transactionsRouter.get('/', async (req, res, next) => {
             session.organization.previewRecurringCount,
         );
 
-        const balance = await getBalance(session.organization.id, effectiveFrom, effectiveTo, categoryFilter, note);
+        const balance = await getBalance(session.organization.id, effectiveFrom, originalEffectiveTo, categoryFilter, note);
 
         res.send({
             balance,

@@ -2,7 +2,7 @@ import {BalanceModel} from "../models/balance-model";
 import {AppDataSource} from "../core/database";
 import {TransactionModel} from "../models/transaction-model";
 import {ServerError} from "../core/server-error";
-import {Between, EntityManager, Like, MoreThan} from "typeorm";
+import {Between, EntityManager, Like} from "typeorm";
 
 
 export interface Balance {
@@ -152,18 +152,20 @@ export async function getBalance(organizationId: string, effectiveFrom: Date, ef
 
     // We do not cache filtered balances
     if (!categoryId && !note) {
-        model = await AppDataSource.manager.findOne(BalanceModel, {
-            where: {
-                organization_uuid: organizationId,
-                dirty: false,
-                valid_until: MoreThan(new Date()),
-                effective_from: effectiveFrom,
-                effective_to: effectiveTo
-            },
-            order: {
-                id: 'DESC',
-            },
-        });
+        let dbResult = await AppDataSource.manager.createQueryBuilder()
+            .select()
+            .from(BalanceModel, 'b')
+            .distinct(true)
+            .where('organization_uuid = UUID_TO_BIN(:orgId)', {orgId: organizationId})
+            .andWhere('dirty = false')
+            .andWhere('valid_until > NOW()')
+            .andWhere('effective_from = :from', {from: effectiveFrom.toISOString().substring(0, 19)})
+            .andWhere('effective_to = :to', {to: effectiveTo.toISOString().substring(0, 19)})
+            .execute();
+
+        if (dbResult.length > 0) {
+            model = dbResult[0];
+        }
     }
 
     let balance: Balance;
