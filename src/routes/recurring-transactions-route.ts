@@ -52,7 +52,7 @@ recurringTransactionsRouter.post('/', async (req, res, next) => {
             throw new ServerError(400, 'field "note" is too long (128 characters)');
         }
 
-        const result = await insertRecurringTransaction(session.organization.id, recurring);
+        const result = await insertRecurringTransaction(session.organization.id, session.user.id, recurring);
         const success = result !== 0;
         const newRecurring = await getRecurringTransactionByDatabaseId(session.organization.id, result);
         let newTransactions = await bookPendingRecurringTransactions(session.organization.id, session.organization.previewRecurringCount);

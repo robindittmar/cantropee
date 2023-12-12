@@ -27,6 +27,13 @@ export class RecurringTransactionModel {
     @Column()
     insert_timestamp!: Date;
 
+    @Column({
+        type: 'binary',
+        length: 16,
+        transformer: TransformUuid,
+    })
+    created_by_uuid!: string;
+
     @Column()
     active!: boolean;
 

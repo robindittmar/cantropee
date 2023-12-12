@@ -180,11 +180,12 @@ export async function getRecurringTransactions(organizationId: string, nextExecu
     return recurringTransactions;
 }
 
-export async function insertRecurringTransaction(organizationId: string, recurring: RecurringTransaction): Promise<number> {
+export async function insertRecurringTransaction(organizationId: string, userId: string, recurring: RecurringTransaction): Promise<number> {
     const lookup = await getCategoriesReverseLookup(organizationId);
 
     const model = new RecurringTransactionModel();
     model.organization_uuid = organizationId;
+    model.created_by_uuid = userId;
     model.timezone = recurring.timezone;
     model.execution_policy = recurring.executionPolicy;
     model.execution_policy_data = recurring.executionPolicyData;
