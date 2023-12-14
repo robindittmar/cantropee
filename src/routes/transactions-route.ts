@@ -34,7 +34,11 @@ transactionsRouter.get('/', async (req, res, next) => {
             from = '1980-01-01T00:00:00';
         }
         if (typeof to !== 'string') {
-            to = moment(new Date()).endOf('year').toISOString();
+            to = moment.utc(new Date())
+                .tz(session.user.settings.timezone)
+                .add(1, 'month')
+                .endOf('month')
+                .toISOString();
         }
         if (typeof start !== 'string') {
             throw new ServerError(400, 'field "start" is missing from query');
