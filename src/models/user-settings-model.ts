@@ -33,6 +33,9 @@ export class UserSettingsModel {
     locale!: string;
 
     @Column()
+    timezone!: string;
+
+    @Column()
     private_mode!: boolean;
 
     @Column()

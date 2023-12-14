@@ -52,15 +52,16 @@ create table organization_users
 create table user_settings
 (
     id                        BIGINT auto_increment,
-    user_uuid                 binary(16)                 not null,
-    default_organization_uuid binary(16)                 not null,
-    can_create_invite         boolean    default false   not null,
-    language                  varchar(8) default 'en-us' not null,
-    locale                    varchar(8) default 'en-us' not null,
-    private_mode              boolean    default false   not null,
-    default_preview_pending   boolean    default false   not null,
-    default_sorting_order_asc boolean    default false   not null,
-    extra                     json                       null,
+    user_uuid                 binary(16)                          not null,
+    default_organization_uuid binary(16)                          not null,
+    can_create_invite         boolean     default false           not null,
+    language                  varchar(8)  default 'en-us'         not null,
+    locale                    varchar(8)  default 'en-us'         not null,
+    timezone                  varchar(64) default 'Europe/Berlin' not null,
+    private_mode              boolean     default false           not null,
+    default_preview_pending   boolean     default false           not null,
+    default_sorting_order_asc boolean     default false           not null,
+    extra                     json                                null,
 
     constraint user_settings_pk
         primary key (id),
