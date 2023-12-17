@@ -96,7 +96,7 @@ export async function useInvite(inviteId: string, orgName: string, currency: str
             name: orgName,
             currency: currency,
             usesTaxes: useTaxes,
-            previewRecurringCount: 3,
+            previewRecurringCount: 1,
             privileges: [],
         });
         await addUserToOrganization(t, createOrgResult.organizationId, user.uuid, createOrgResult.adminRoleId);

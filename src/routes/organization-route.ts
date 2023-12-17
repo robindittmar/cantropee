@@ -44,7 +44,7 @@ organizationRouter.post('/', async (req, res, next) => {
             return;
         }
 
-        let previewCount = 3;
+        let previewCount = 1;
         if (previewRecurringCount) {
             previewCount = parseInt(previewRecurringCount);
         }
