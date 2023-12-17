@@ -5,7 +5,7 @@ export const badRequest = (res: Response, missingFieldName: string) => {
     res.send({
         success: false,
         code: 400,
-        message: `missing field "${missingFieldName} in request`,
+        message: `missing field "${missingFieldName}" in request`,
     });
 };
 

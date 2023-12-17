@@ -76,6 +76,14 @@ export async function createOrganization(userId: string, organization: Organizat
     return orgId;
 }
 
+export async function addUserToOrganization(organizationId: string, userId: string, roleId: string): Promise<void> {
+    const orgUser = new OrganizationUserModel();
+    orgUser.organization_uuid = organizationId;
+    orgUser.user_uuid = userId;
+    orgUser.role_uuid = roleId;
+    await AppDataSource.manager.save(orgUser);
+}
+
 export async function deleteOrganization(organizationId: string): Promise<void> {
     throw new Error('Not implemented yet; ' + organizationId);
 }

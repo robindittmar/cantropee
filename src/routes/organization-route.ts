@@ -1,8 +1,9 @@
 import express from "express";
 import {getSessionFromReq} from "../services/session-service";
-import {createOrganization, getOrganizationsForUser} from "../services/organization-service";
+import {addUserToOrganization, createOrganization, getOrganizationsForUser} from "../services/organization-service";
 import {ServerError} from "../core/server-error";
 import {forbidden} from "../core/response-helpers";
+import {getUserByEmail} from "../services/user-service";
 
 export const organizationRouter = express.Router();
 
@@ -29,7 +30,10 @@ organizationRouter.post('/', async (req, res, next) => {
         if (!currency || typeof currency !== 'string') {
             throw new ServerError(400, '"currency" must be string');
         }
-        console.log(useTaxes);
+        if (!useTaxes || typeof useTaxes !== 'boolean') {
+            throw new ServerError(400, '"useTaxes" must be boolean');
+        }
+
         let previewCount = 3;
         if (previewRecurringCount) {
             previewCount = parseInt(previewRecurringCount);
@@ -47,6 +51,30 @@ organizationRouter.post('/', async (req, res, next) => {
         session.user.organizations = await getOrganizationsForUser(session.user.id);
 
         res.send({success: true, organizationId: orgId});
+    } catch (err) {
+        next(err);
+    }
+});
+
+organizationRouter.post('/user', async (req, res, next) => {
+    try {
+        const session = getSessionFromReq(req);
+
+        if (!session.organization.privileges.includes('admin')) {
+            forbidden(res);
+            return;
+        }
+
+        const {email, roleId} = req.body;
+
+        if (!email || typeof email !== 'string') {
+            throw new ServerError(400, '"email" must be string');
+        }
+
+        const [user] = await getUserByEmail(email);
+        await addUserToOrganization(session.organization.id, user.id, roleId);
+
+        res.send({success: true});
     } catch (err) {
         next(err);
     }

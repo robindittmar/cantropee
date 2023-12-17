@@ -4,6 +4,7 @@ import {UserModel} from "../models/user-model";
 import {Organization, getOrganizationsForUser} from "./organization-service";
 import {OrganizationUserModel} from "../models/organization-user-model";
 import {UserSettingsModel} from "../models/user-settings-model";
+import {ServerError} from "../core/server-error";
 
 export interface User {
     id: string;
@@ -76,7 +77,7 @@ export async function getUserByEmail(email: string): Promise<[User, string, bool
     });
 
     if (model === null) {
-        throw new Error('User was not found');
+        throw new ServerError(404, 'User was not found');
     }
 
     const user: User = {
