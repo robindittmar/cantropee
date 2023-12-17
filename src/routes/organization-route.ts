@@ -34,7 +34,7 @@ organizationRouter.post('/', async (req, res, next) => {
             badRequestMissingField(res, 'currency');
             return;
         }
-        if (!useTaxes || typeof useTaxes !== 'boolean') {
+        if (typeof useTaxes !== 'boolean') {
             badRequestMissingField(res, 'useTaxes');
             return;
         }
