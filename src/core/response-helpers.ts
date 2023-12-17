@@ -14,6 +14,15 @@ export const unauthorized = (res: Response) => {
     res.send({
         success: false,
         code: 401,
+        message: 'You are not logged in',
+    });
+};
+
+export const forbidden = (res: Response) => {
+    res.status(403);
+    res.send({
+        success: false,
+        code: 403,
         message: 'You have insufficient rights to perform this action',
     });
 };

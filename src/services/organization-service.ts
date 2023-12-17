@@ -1,5 +1,9 @@
 import {AppDataSource} from "../core/database";
 import {OrganizationUserModel} from "../models/organization-user-model";
+import {OrganizationModel} from "../models/organization-model";
+import {randomUUID} from "crypto";
+import {RoleModel} from "../models/role-model";
+import {CategoryModel} from "../models/category-model";
 
 
 export interface Organization {
@@ -36,4 +40,42 @@ export async function getOrganizationsForUser(userId: string): Promise<Organizat
     }
 
     return organizations;
+}
+
+export async function createOrganization(userId: string, organization: Organization): Promise<string> {
+    let orgId = randomUUID();
+
+    await AppDataSource.manager.transaction(async t => {
+        const org = new OrganizationModel();
+        org.uuid = orgId;
+        org.name = organization.name;
+        org.currency = organization.currency;
+        org.uses_taxes = organization.usesTaxes;
+        org.preview_recurring_count = organization.previewRecurringCount;
+        await t.save(org);
+
+        const role = new RoleModel();
+        role.uuid = randomUUID();
+        role.organization_uuid = org.uuid;
+        role.name = 'admin';
+        role.privileges = ['read', 'write', 'admin'];
+        await t.save(role);
+
+        const orgUser = new OrganizationUserModel();
+        orgUser.organization_uuid = org.uuid;
+        orgUser.user_uuid = userId;
+        orgUser.role_uuid = role.uuid;
+        await t.save(orgUser);
+
+        const category = new CategoryModel();
+        category.organization_uuid = org.uuid;
+        category.name = 'n/a';
+        await t.save(category);
+    });
+
+    return orgId;
+}
+
+export async function deleteOrganization(organizationId: string): Promise<void> {
+    throw new Error('Not implemented yet; ' + organizationId);
 }

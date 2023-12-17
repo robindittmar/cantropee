@@ -13,6 +13,7 @@ import {housekeep} from "./services/housekeep-service";
 import {loginRouter} from "./routes/login-route";
 import {logoutRouter} from "./routes/logout-route";
 import {changePasswordRouter} from "./routes/change-password-route";
+import {organizationRouter} from "./routes/organization-route";
 import {transactionsRouter} from "./routes/transactions-route";
 import {recurringTransactionsRouter} from "./routes/recurring-transactions-route";
 import {categoriesRouter} from "./routes/categories-route";
@@ -27,7 +28,6 @@ async function main() {
     console.log(`$ initializing with ${JSON.stringify(conf.parsed)}`);
 
     await AppDataSource.initialize();
-
     await housekeep();
 
     const app = express();
@@ -42,6 +42,7 @@ async function main() {
     app.use('/api/login', loginRouter);
     app.use('/api/logout', logoutRouter);
     app.use('/api/change-password', changePasswordRouter);
+    app.use('/api/organization', organizationRouter);
     app.use('/api/categories', categoriesRouter);
     app.use('/api/transactions', transactionsRouter);
     app.use('/api/recurring', recurringTransactionsRouter);
