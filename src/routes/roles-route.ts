@@ -2,7 +2,7 @@ import express from 'express';
 import {getSessionFromReq} from "../services/session-service";
 import {deleteRole, getRoles, insertRole, updateRole, UserRole} from "../services/roles-service";
 import {Privileges} from "../core/privileges";
-import {badRequest, serverError, unauthorized} from "../core/response-helpers";
+import {badRequestMissingField, serverError, unauthorized} from "../core/response-helpers";
 
 export const rolesRouter = express.Router();
 
@@ -37,10 +37,10 @@ rolesRouter.post('/', async (req, res, next) => {
 
         const {name, privileges} = req.body;
         if (!name) {
-            badRequest(res, 'name');
+            badRequestMissingField(res, 'name');
         }
         if (!privileges) {
-            badRequest(res, 'privileges');
+            badRequestMissingField(res, 'privileges');
         }
 
         const role: UserRole = {
@@ -72,13 +72,13 @@ rolesRouter.put('/', async (req, res, next) => {
 
         const {id, name, privileges} = req.body;
         if (!id) {
-            badRequest(res, 'id');
+            badRequestMissingField(res, 'id');
         }
         if (!name) {
-            badRequest(res, 'name');
+            badRequestMissingField(res, 'name');
         }
         if (!privileges) {
-            badRequest(res, 'privileges');
+            badRequestMissingField(res, 'privileges');
         }
 
         const role: UserRole = {
@@ -106,7 +106,7 @@ rolesRouter.delete('/', async (req, res, next) => {
 
         const {id} = req.body;
         if (!id) {
-            badRequest(res, 'id');
+            badRequestMissingField(res, 'id');
             return;
         }
 

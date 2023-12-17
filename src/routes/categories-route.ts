@@ -1,7 +1,7 @@
 import express from 'express';
 import {deleteCategory, getCategories, insertCategory, updateCategory} from "../services/categories-service";
 import {getSessionFromReq} from "../services/session-service";
-import {badRequest, serverError} from "../core/response-helpers";
+import {badRequestMissingField, serverError} from "../core/response-helpers";
 
 export const categoriesRouter = express.Router();
 
@@ -23,7 +23,7 @@ categoriesRouter.post('/', async (req, res, next) => {
 
         const {name} = req.body;
         if (!name) {
-            badRequest(res, 'name');
+            badRequestMissingField(res, 'name');
             return;
         }
 
@@ -48,11 +48,11 @@ categoriesRouter.put('/', async (req, res, next) => {
 
         const {id, name} = req.body;
         if (!id) {
-            badRequest(res, 'id');
+            badRequestMissingField(res, 'id');
             return;
         }
         if (!name) {
-            badRequest(res, 'name');
+            badRequestMissingField(res, 'name');
             return;
         }
 
@@ -80,7 +80,7 @@ categoriesRouter.delete('/', async (req, res, next) => {
 
         const {id} = req.body;
         if (!id) {
-            badRequest(res, 'id');
+            badRequestMissingField(res, 'id');
             return;
         }
 

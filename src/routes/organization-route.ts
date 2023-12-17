@@ -1,9 +1,10 @@
 import express from "express";
-import {getSessionFromReq} from "../services/session-service";
+import {getSessionFromReq, updateSessionCache} from "../services/session-service";
 import {addUserToOrganization, createOrganization, getOrganizationsForUser} from "../services/organization-service";
 import {ServerError} from "../core/server-error";
 import {forbidden} from "../core/response-helpers";
 import {getUserByEmail} from "../services/user-service";
+import {AppDataSource} from "../core/database";
 
 export const organizationRouter = express.Router();
 
@@ -39,16 +40,23 @@ organizationRouter.post('/', async (req, res, next) => {
             previewCount = parseInt(previewRecurringCount);
         }
 
-        const orgId = await createOrganization(session.user.id, {
-            id: '',
-            name: name,
-            currency: currency,
-            usesTaxes: useTaxes,
-            previewRecurringCount: previewCount,
-            privileges: [],
+        let orgId: string = '';
+        await AppDataSource.manager.transaction(async t => {
+            const createOrgResult = await createOrganization(t, {
+                id: '',
+                name: name,
+                currency: currency,
+                usesTaxes: useTaxes,
+                previewRecurringCount: previewCount,
+                privileges: [],
+            });
+            await addUserToOrganization(t, createOrgResult.organizationId, session.user.id, createOrgResult.adminRoleId);
+
+            orgId = createOrgResult.organizationId;
         });
 
         session.user.organizations = await getOrganizationsForUser(session.user.id);
+        updateSessionCache(session);
 
         res.send({success: true, organizationId: orgId});
     } catch (err) {
@@ -72,7 +80,7 @@ organizationRouter.post('/user', async (req, res, next) => {
         }
 
         const [user] = await getUserByEmail(email);
-        await addUserToOrganization(session.organization.id, user.id, roleId);
+        await addUserToOrganization(AppDataSource.manager, session.organization.id, user.id, roleId);
 
         res.send({success: true});
     } catch (err) {

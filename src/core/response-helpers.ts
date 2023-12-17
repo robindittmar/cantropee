@@ -1,6 +1,6 @@
 import {Response} from "express";
 
-export const badRequest = (res: Response, missingFieldName: string) => {
+export const badRequestMissingField = (res: Response, missingFieldName: string) => {
     res.status(400);
     res.send({
         success: false,
@@ -8,6 +8,15 @@ export const badRequest = (res: Response, missingFieldName: string) => {
         message: `missing field "${missingFieldName}" in request`,
     });
 };
+
+export const badRequest = (res: Response, message: string) => {
+    res.status(400);
+    res.send({
+        success: false,
+        code: 400,
+        message: message,
+    });
+}
 
 export const unauthorized = (res: Response) => {
     res.status(401);

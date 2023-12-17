@@ -4,6 +4,7 @@ import {OrganizationModel} from "../models/organization-model";
 import {randomUUID} from "crypto";
 import {RoleModel} from "../models/role-model";
 import {CategoryModel} from "../models/category-model";
+import {EntityManager} from "typeorm";
 
 
 export interface Organization {
@@ -42,46 +43,46 @@ export async function getOrganizationsForUser(userId: string): Promise<Organizat
     return organizations;
 }
 
-export async function createOrganization(userId: string, organization: Organization): Promise<string> {
-    let orgId = randomUUID();
+export async function createOrganization(manager: EntityManager, organization: Organization): Promise<{
+    organizationId: string;
+    adminRoleId: string;
+}> {
+    const org = new OrganizationModel();
+    org.uuid = randomUUID();
+    org.name = organization.name;
+    org.currency = organization.currency;
+    org.uses_taxes = organization.usesTaxes;
+    org.preview_recurring_count = organization.previewRecurringCount;
+    await manager.save(org);
 
-    await AppDataSource.manager.transaction(async t => {
-        const org = new OrganizationModel();
-        org.uuid = orgId;
-        org.name = organization.name;
-        org.currency = organization.currency;
-        org.uses_taxes = organization.usesTaxes;
-        org.preview_recurring_count = organization.previewRecurringCount;
-        await t.save(org);
-
+    const newRole = async (name: string, priv: string[]) => {
         const role = new RoleModel();
         role.uuid = randomUUID();
         role.organization_uuid = org.uuid;
-        role.name = 'admin';
-        role.privileges = ['read', 'write', 'admin'];
-        await t.save(role);
+        role.name = name;
+        role.privileges = priv;
+        await manager.save(role);
 
-        const orgUser = new OrganizationUserModel();
-        orgUser.organization_uuid = org.uuid;
-        orgUser.user_uuid = userId;
-        orgUser.role_uuid = role.uuid;
-        await t.save(orgUser);
+        return role.uuid;
+    };
+    const adminRoleId = await newRole('admin', ['read', 'write', 'admin']);
+    await newRole('user', ['read', 'write']);
+    await newRole('read-only', ['read']);
 
-        const category = new CategoryModel();
-        category.organization_uuid = org.uuid;
-        category.name = 'n/a';
-        await t.save(category);
-    });
+    const category = new CategoryModel();
+    category.organization_uuid = org.uuid;
+    category.name = 'n/a';
+    await manager.save(category);
 
-    return orgId;
+    return {organizationId: org.uuid, adminRoleId: adminRoleId};
 }
 
-export async function addUserToOrganization(organizationId: string, userId: string, roleId: string): Promise<void> {
+export async function addUserToOrganization(manager: EntityManager, organizationId: string, userId: string, roleId: string): Promise<void> {
     const orgUser = new OrganizationUserModel();
     orgUser.organization_uuid = organizationId;
     orgUser.user_uuid = userId;
     orgUser.role_uuid = roleId;
-    await AppDataSource.manager.save(orgUser);
+    await manager.save(orgUser);
 }
 
 export async function deleteOrganization(organizationId: string): Promise<void> {

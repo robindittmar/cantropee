@@ -1,14 +1,11 @@
 import {InviteModel} from "../models/invite-model";
 import {AppDataSource} from "../core/database";
 import {ServerError} from "../core/server-error";
-import {OrganizationModel} from "../models/organization-model";
-import {RoleModel} from "../models/role-model";
 import {UserModel} from "../models/user-model";
 import {UserSettingsModel} from "../models/user-settings-model";
-import {OrganizationUserModel} from "../models/organization-user-model";
-import {CategoryModel} from "../models/category-model";
 import * as bcrypt from "bcrypt";
 import {randomUUID} from "crypto";
+import {addUserToOrganization, createOrganization} from "./organization-service";
 
 export interface Invite {
     id: string;
@@ -68,7 +65,7 @@ export async function validateInvite(inviteId: string): Promise<boolean> {
     return !invite.organization_uuid;
 }
 
-export async function useInvite(inviteId: string, orgName: string, useTaxes: boolean, userEmail: string, userPassword: string): Promise<void> {
+export async function useInvite(inviteId: string, orgName: string, currency: string, useTaxes: boolean, userEmail: string, userPassword: string): Promise<void> {
     const now = new Date();
 
     const invite = await AppDataSource.manager.findOne(InviteModel, {
@@ -87,21 +84,6 @@ export async function useInvite(inviteId: string, orgName: string, useTaxes: boo
     }
 
     await AppDataSource.manager.transaction(async t => {
-        const org = new OrganizationModel();
-        org.uuid = randomUUID();
-        org.name = orgName;
-        org.currency = 'EUR';
-        org.uses_taxes = useTaxes;
-        org.preview_recurring_count = 3;
-        await t.save(org);
-
-        const role = new RoleModel();
-        role.uuid = randomUUID();
-        role.organization_uuid = org.uuid;
-        role.name = 'admin';
-        role.privileges = ['read', 'write', 'admin'];
-        await t.save(role);
-
         const user = new UserModel();
         user.uuid = randomUUID();
         user.email = userEmail;
@@ -109,24 +91,24 @@ export async function useInvite(inviteId: string, orgName: string, useTaxes: boo
         user.require_password_change = false;
         await t.save(user);
 
+        const createOrgResult = await createOrganization(t, {
+            id: '',
+            name: orgName,
+            currency: currency,
+            usesTaxes: useTaxes,
+            previewRecurringCount: 3,
+            privileges: [],
+        });
+        await addUserToOrganization(t, createOrgResult.organizationId, user.uuid, createOrgResult.adminRoleId);
+
         const userSettings = new UserSettingsModel();
         userSettings.user_uuid = user.uuid;
-        userSettings.default_organization_uuid = org.uuid;
+        userSettings.default_organization_uuid = createOrgResult.organizationId;
         userSettings.can_create_invite = true;
         await t.save(userSettings);
 
-        const orgUser = new OrganizationUserModel();
-        orgUser.organization_uuid = org.uuid;
-        orgUser.user_uuid = user.uuid;
-        orgUser.role_uuid = role.uuid;
-        await t.save(orgUser);
-
-        const category = new CategoryModel();
-        category.organization_uuid = org.uuid;
-        category.name = 'n/a';
-        await t.save(category);
-
-        invite.organization_uuid = org.uuid;
+        invite.organization_uuid = createOrgResult.organizationId;
+        invite.accepted_by = user.uuid;
         invite.accepted_at = now;
         await t.save(invite);
     });

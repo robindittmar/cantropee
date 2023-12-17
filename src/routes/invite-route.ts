@@ -2,6 +2,8 @@ import express from 'express';
 import {createInvite, useInvite, validateInvite} from "../services/invite-service";
 import {getSessionFromReq} from "../services/session-service";
 import {ServerError} from "../core/server-error";
+import {badRequest, badRequestMissingField} from "../core/response-helpers";
+import {VALID_CURRENCIES} from "../core/currency";
 
 export const inviteRouter = express.Router();
 
@@ -35,28 +37,43 @@ inviteRouter.post('/use', async (req, res, next) => {
         const {
             inviteId,
             organization,
+            currency,
             useTaxes,
             email,
             password,
         } = req.body;
-        
+
         if (!inviteId || typeof inviteId !== 'string') {
-            throw new ServerError(400, 'inviteId parameter is not string');
+            badRequestMissingField(res, 'inviteId');
+            return;
         }
         if (!organization || typeof organization !== 'string') {
-            throw new ServerError(400, 'organization parameter is not string');
+            badRequestMissingField(res, 'organization');
+            return;
+        }
+        if (!currency || typeof currency !== 'string') {
+            badRequestMissingField(res, 'currency');
+            return;
         }
         if (typeof useTaxes !== 'boolean') {
-            throw new ServerError(400, 'useTaxes parameter is not boolean');
+            badRequestMissingField(res, 'useTaxes');
+            return;
         }
         if (!email || typeof email !== 'string') {
-            throw new ServerError(400, 'email parameter is not string');
+            badRequestMissingField(res, 'email');
+            return;
         }
         if (!password || typeof password !== 'string') {
-            throw new ServerError(400, 'password is not string');
+            badRequestMissingField(res, 'password');
+            return;
         }
 
-        await useInvite(inviteId, organization, useTaxes, email, password);
+        if (!VALID_CURRENCIES.includes(currency)) {
+            badRequest(res, `${currency} is not a valid currency`);
+            return;
+        }
+
+        await useInvite(inviteId, organization, currency, useTaxes, email, password);
         res.send({success: true});
     } catch (err) {
         next(err);

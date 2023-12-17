@@ -37,5 +37,12 @@ export class InviteModel {
         length: 16,
         transformer: TransformUuid,
     })
+    accepted_by?: string;
+
+    @Column({
+        type: 'binary',
+        length: 16,
+        transformer: TransformUuid,
+    })
     organization_uuid?: string;
 }

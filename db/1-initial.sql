@@ -225,6 +225,7 @@ create table invites
     issued_by         binary(16)                               not null,
     expires_at        datetime                                 not null,
     accepted_at       datetime                                 null,
+    accepted_by       binary(16)                               null,
     organization_uuid binary(16)                               null,
 
     constraint invites_pk

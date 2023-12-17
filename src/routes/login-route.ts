@@ -1,6 +1,6 @@
 import express from 'express';
 import {login} from "../services/login-service";
-import {badRequest} from "../core/response-helpers";
+import {badRequestMissingField} from "../core/response-helpers";
 
 export const loginRouter = express.Router();
 
@@ -10,15 +10,15 @@ loginRouter.post('/', async (req, res, next) => {
         const {email, password, permanentSession} = req.body;
 
         if (!email || typeof email !== 'string') {
-            badRequest(res, 'email');
+            badRequestMissingField(res, 'email');
             return;
         }
         if (!password || typeof password !== 'string') {
-            badRequest(res, 'password');
+            badRequestMissingField(res, 'password');
             return;
         }
         if (permanentSession && typeof permanentSession !== 'boolean') {
-            badRequest(res, 'permanentSession');
+            badRequestMissingField(res, 'permanentSession');
             return;
         }
 
