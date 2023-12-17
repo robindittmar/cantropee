@@ -1,10 +1,16 @@
 import {AppDataSource} from "../core/database";
 import {RecurringTransactionModel} from "../models/recurring-transaction-model";
 import {getCategoriesLookup, getCategoriesReverseLookup} from "./categories-service";
-import {getTransactionByDatabaseId, insertTransaction, Transaction} from "./transaction-service";
+import {
+    getTransactionByDatabaseId,
+    insertTransaction,
+    modelToTransaction,
+    Transaction,
+    updateTransaction
+} from "./transaction-service";
 import {invalidateAllBalances} from "./balance-service";
 import moment from 'moment-timezone';
-import {EntityManager, LessThanOrEqual} from "typeorm";
+import {EntityManager, LessThanOrEqual, MoreThan} from "typeorm";
 import {RecurringBookedModel} from "../models/recurring-booked-model";
 import {TransactionModel} from "../models/transaction-model";
 import {ServerError} from "../core/server-error";
@@ -180,7 +186,7 @@ export async function getRecurringTransactions(organizationId: string, nextExecu
     return recurringTransactions;
 }
 
-export async function insertRecurringTransaction(organizationId: string, userId: string, recurring: RecurringTransaction): Promise<number> {
+export async function insertRecurringTransaction(manager: EntityManager, organizationId: string, userId: string, recurring: RecurringTransaction): Promise<number> {
     const lookup = await getCategoriesReverseLookup(organizationId);
 
     const model = new RecurringTransactionModel();
@@ -190,7 +196,7 @@ export async function insertRecurringTransaction(organizationId: string, userId:
     model.execution_policy = recurring.executionPolicy;
     model.execution_policy_data = recurring.executionPolicyData;
     model.first_execution = recurring.firstExecution;
-    model.next_execution = recurring.firstExecution;// on purpose
+    model.next_execution = recurring.nextExecution;
     if (recurring.lastExecution) {
         model.last_execution = recurring.lastExecution;
     }
@@ -211,9 +217,33 @@ export async function insertRecurringTransaction(organizationId: string, userId:
     if (recurring.note) {
         model.note = recurring.note;
     }
-    await AppDataSource.manager.save(model);
+    await manager.save(model);
 
     return model.id;
+}
+
+export async function updateRecurringTransaction(manager: EntityManager, organizationId: string, userId: string, recurring: RecurringTransaction): Promise<void> {
+    let id = await insertRecurringTransaction(manager, organizationId, userId, recurring);
+
+    const newRecurring = await getRecurringTransactionByDatabaseId(organizationId, id);
+
+    const model = new RecurringTransactionModel();
+    model.uuid = recurring.id;
+    model.organization_uuid = organizationId;
+    model.active = false;
+    model.ref_uuid = newRecurring.id;
+    model.current_version_uuid = newRecurring.id;
+    await manager.save(model);
+
+    await manager.createQueryBuilder()
+        .update(RecurringTransactionModel)
+        .set({
+            current_version_uuid: newRecurring.id,
+        })
+        .where({
+            current_version_uuid: recurring.id,
+        })
+        .execute();
 }
 
 async function setRecurringTransactionInactive(transaction: EntityManager, organizationId: string, recurring: RecurringTransaction): Promise<void> {
@@ -332,6 +362,35 @@ export async function prebookTransactions(transaction: EntityManager, organizati
     }
 
     return newIds;
+}
+
+export async function updatePrebookedTransactions(manager: EntityManager, organizationId: string, recurring: RecurringTransaction): Promise<void> {
+    const prebookeds = await manager.find(RecurringBookedModel, {
+        where: {
+            recurring_uuid: recurring.id,
+            transaction: {
+                organization_uuid: organizationId,
+                effective_timestamp: MoreThan(new Date())
+            },
+        },
+        relations: {
+            transaction: true
+        }
+    });
+
+    const categoryLookup = await getCategoriesLookup(organizationId);
+    for (let prebooked of prebookeds) {
+        let t = modelToTransaction(prebooked.transaction, categoryLookup);
+
+        t.category = recurring.category;
+        t.note = recurring.note;
+        t.value = recurring.value;
+        t.value19 = recurring.value19 ?? 0;
+        t.value7 = recurring.value7 ?? 0;
+        t.vat19 = recurring.vat19 ?? 0;
+        t.vat7 = recurring.vat7 ?? 0;
+        await updateTransaction(organizationId, SYSTEM_USER_UUID, t);
+    }
 }
 
 export async function deleteRecurringTransaction(organizationId: string, recurringTransactionId: string, cascade: boolean = false): Promise<boolean> {

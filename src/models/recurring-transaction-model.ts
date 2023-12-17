@@ -37,6 +37,20 @@ export class RecurringTransactionModel {
     @Column()
     active!: boolean;
 
+    @Column({
+        type: 'binary',
+        length: 16,
+        transformer: TransformUuid,
+    })
+    ref_uuid!: string;
+
+    @Column({
+        type: 'binary',
+        length: 16,
+        transformer: TransformUuid,
+    })
+    current_version_uuid!: string;
+
     @Column()
     timezone!: string;
 
