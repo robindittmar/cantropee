@@ -44,7 +44,7 @@ export interface PaginatedTransactions {
     data: Transaction[];
 }
 
-const modelToTransaction = (t: TransactionModel, lookup: { [id: number]: string }): Transaction => {
+export const modelToTransaction = (t: TransactionModel, lookup: { [id: number]: string }): Transaction => {
     return {
         id: t.uuid,
         refId: t.ref_uuid ?? undefined,
@@ -367,7 +367,7 @@ export async function updateTransaction(organizationId: string, userId: string, 
     let oldTransaction = await getTransaction(organizationId, oldId);
 
     if (transactionsDataEqual(t, oldTransaction)) {
-        throw new Error('Transactions identical');
+        throw new ServerError(400, 'Transactions identical');
     }
 
     let newId: string = '';
