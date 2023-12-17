@@ -6,6 +6,7 @@ import {badRequest, badRequestMissingField, forbidden} from "../core/response-he
 import {getUserByEmail} from "../services/user-service";
 import {AppDataSource} from "../core/database";
 import {VALID_CURRENCIES} from "../core/currency";
+import {hasAdminPrivilege} from "../core/privileges";
 
 export const organizationRouter = express.Router();
 
@@ -76,8 +77,7 @@ organizationRouter.post('/', async (req, res, next) => {
 organizationRouter.post('/user', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
-
-        if (!session.organization.privileges.includes('admin')) {
+        if (!hasAdminPrivilege(session.organization)) {
             forbidden(res);
             return;
         }

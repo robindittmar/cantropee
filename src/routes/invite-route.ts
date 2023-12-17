@@ -4,6 +4,7 @@ import {getSessionFromReq} from "../services/session-service";
 import {ServerError} from "../core/server-error";
 import {badRequest, badRequestMissingField} from "../core/response-helpers";
 import {VALID_CURRENCIES} from "../core/currency";
+import {validateEmail} from "../core/validate-helper";
 
 export const inviteRouter = express.Router();
 
@@ -68,6 +69,9 @@ inviteRouter.post('/use', async (req, res, next) => {
             return;
         }
 
+        if (!validateEmail(email)) {
+            badRequest(res, `${email} is not a valid e-mail`);
+        }
         if (!VALID_CURRENCIES.includes(currency)) {
             badRequest(res, `${currency} is not a valid currency`);
             return;

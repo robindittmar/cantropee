@@ -1,8 +1,8 @@
 import express from 'express';
 import {getSessionFromReq} from "../services/session-service";
 import {deleteRole, getRoles, insertRole, updateRole, UserRole} from "../services/roles-service";
-import {Privileges} from "../core/privileges";
-import {badRequestMissingField, serverError, unauthorized} from "../core/response-helpers";
+import {hasAdminPrivilege} from "../core/privileges";
+import {badRequestMissingField, forbidden, serverError} from "../core/response-helpers";
 
 export const rolesRouter = express.Router();
 
@@ -10,9 +10,8 @@ export const rolesRouter = express.Router();
 rolesRouter.get('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
-
-        if (!session.organization.privileges.includes(Privileges.Admin)) {
-            unauthorized(res);
+        if (!hasAdminPrivilege(session.organization)) {
+            forbidden(res);
             return;
         }
 
@@ -29,9 +28,8 @@ rolesRouter.get('/', async (req, res, next) => {
 rolesRouter.post('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
-
-        if (!session.organization.privileges.includes(Privileges.Admin)) {
-            unauthorized(res);
+        if (!hasAdminPrivilege(session.organization)) {
+            forbidden(res);
             return;
         }
 
@@ -64,9 +62,8 @@ rolesRouter.post('/', async (req, res, next) => {
 rolesRouter.put('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
-
-        if (!session.organization.privileges.includes(Privileges.Admin)) {
-            unauthorized(res);
+        if (!hasAdminPrivilege(session.organization)) {
+            forbidden(res);
             return;
         }
 
@@ -103,6 +100,10 @@ rolesRouter.put('/', async (req, res, next) => {
 rolesRouter.delete('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasAdminPrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         const {id} = req.body;
         if (!id) {

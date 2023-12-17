@@ -9,6 +9,8 @@ import {
     RecurringTransaction
 } from "../services/recurring-transaction-service";
 import {ServerError} from "../core/server-error";
+import {hasReadPrivilege, hasWritePrivilege} from "../core/privileges";
+import {forbidden} from "../core/response-helpers";
 
 export const recurringTransactionsRouter = express.Router();
 
@@ -16,6 +18,10 @@ export const recurringTransactionsRouter = express.Router();
 recurringTransactionsRouter.get('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasReadPrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         let result = await getRecurringTransactions(session.organization.id);
         res.send(result);
@@ -27,6 +33,10 @@ recurringTransactionsRouter.get('/', async (req, res, next) => {
 recurringTransactionsRouter.post('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasWritePrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         let recurringReq = req.body;
         let recurring: RecurringTransaction = {
@@ -68,6 +78,10 @@ recurringTransactionsRouter.post('/', async (req, res, next) => {
 recurringTransactionsRouter.delete('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasWritePrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         let {cascade} = req.query;
         if (typeof cascade !== 'string') {

@@ -12,6 +12,8 @@ import {getSessionFromReq} from "../services/session-service";
 import {AppDataSource} from "../core/database";
 import {ServerError} from "../core/server-error";
 import moment from "moment-timezone";
+import {hasReadPrivilege, hasWritePrivilege} from "../core/privileges";
+import {forbidden} from "../core/response-helpers";
 
 export const transactionsRouter = express.Router();
 
@@ -19,6 +21,10 @@ export const transactionsRouter = express.Router();
 transactionsRouter.get('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasReadPrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         let {
             from,
@@ -95,6 +101,10 @@ transactionsRouter.get('/', async (req, res, next) => {
 transactionsRouter.get('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasReadPrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         let id = req.params['id'] ?? '0';
         let result = await getTransaction(session.organization.id, id);
@@ -107,6 +117,10 @@ transactionsRouter.get('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-
 transactionsRouter.get('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})/history', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasReadPrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         let id = req.params['id'] ?? '0';
         let result = await calcTransactionHistoryDiff(session.organization.id, id);
@@ -119,6 +133,10 @@ transactionsRouter.get('/:id([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-
 transactionsRouter.post('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasWritePrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         let transactionReq = req.body;
         let transaction: Transaction = {
@@ -152,6 +170,10 @@ transactionsRouter.post('/', async (req, res, next) => {
 transactionsRouter.put('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasWritePrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         let transactionReq = req.body;
         let transaction: Transaction = {
@@ -184,6 +206,10 @@ transactionsRouter.put('/', async (req, res, next) => {
 transactionsRouter.get('/balance', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasReadPrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         let {from, to, category, note} = req.query;
         if (typeof from !== 'string') {

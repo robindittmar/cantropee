@@ -1,7 +1,8 @@
 import express from 'express';
 import {deleteCategory, getCategories, insertCategory, updateCategory} from "../services/categories-service";
 import {getSessionFromReq} from "../services/session-service";
-import {badRequestMissingField, serverError} from "../core/response-helpers";
+import {badRequestMissingField, forbidden, serverError} from "../core/response-helpers";
+import {hasReadPrivilege, hasWritePrivilege} from "../core/privileges";
 
 export const categoriesRouter = express.Router();
 
@@ -9,6 +10,10 @@ export const categoriesRouter = express.Router();
 categoriesRouter.get('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasReadPrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         const categories = await getCategories(session.organization.id);
         res.send(categories);
@@ -20,6 +25,10 @@ categoriesRouter.get('/', async (req, res, next) => {
 categoriesRouter.post('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasWritePrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         const {name} = req.body;
         if (!name) {
@@ -45,6 +54,10 @@ categoriesRouter.post('/', async (req, res, next) => {
 categoriesRouter.put('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasWritePrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         const {id, name} = req.body;
         if (!id) {
@@ -77,6 +90,10 @@ categoriesRouter.put('/', async (req, res, next) => {
 categoriesRouter.delete('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
+        if (!hasWritePrivilege(session.organization)) {
+            forbidden(res);
+            return;
+        }
 
         const {id} = req.body;
         if (!id) {
