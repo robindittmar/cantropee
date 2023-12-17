@@ -2,9 +2,10 @@ import express from "express";
 import {getSessionFromReq, updateSessionCache} from "../services/session-service";
 import {addUserToOrganization, createOrganization, getOrganizationsForUser} from "../services/organization-service";
 import {ServerError} from "../core/server-error";
-import {forbidden} from "../core/response-helpers";
+import {badRequest, badRequestMissingField, forbidden} from "../core/response-helpers";
 import {getUserByEmail} from "../services/user-service";
 import {AppDataSource} from "../core/database";
+import {VALID_CURRENCIES} from "../core/currency";
 
 export const organizationRouter = express.Router();
 
@@ -26,13 +27,21 @@ organizationRouter.post('/', async (req, res, next) => {
         } = req.body;
 
         if (!name || typeof name !== 'string') {
-            throw new ServerError(400, '"name" must be string');
+            badRequestMissingField(res, 'name');
+            return;
         }
         if (!currency || typeof currency !== 'string') {
-            throw new ServerError(400, '"currency" must be string');
+            badRequestMissingField(res, 'currency');
+            return;
         }
         if (!useTaxes || typeof useTaxes !== 'boolean') {
-            throw new ServerError(400, '"useTaxes" must be boolean');
+            badRequestMissingField(res, 'useTaxes');
+            return;
+        }
+
+        if (!VALID_CURRENCIES.includes(currency)) {
+            badRequest(res, `${currency} is not a valid currency`);
+            return;
         }
 
         let previewCount = 3;
