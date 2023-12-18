@@ -49,13 +49,13 @@ export const validateSession = async (req: Request, res: Response, next: NextFun
         return;
     }
 
-    // Only revalidate session when it will run out in less than 30 mins.
+    // Only revalidate session when it will run out within 4 hours.
     const now = new Date();
     const minutesLeft = ((session.validUntil.getTime() - now.getTime()) / 60000);
-    if (minutesLeft < 30) {
+    if (minutesLeft < 240) {
         // TODO: Permanent sessions should actually be increased by 1 year
         let validUntil = now;
-        validUntil.setHours(validUntil.getHours() + 1);
+        validUntil.setDate(validUntil.getDate() + 1);
 
         session.validUntil = validUntil;
         if (!await revalidateSession(session)) {

@@ -17,7 +17,7 @@ export async function login(email: string, password: string, permanentSession: b
             if (permanentSession) {
                 validUntil.setFullYear(validUntil.getFullYear() + 1);
             } else {
-                validUntil.setHours(validUntil.getHours() + 1);
+                validUntil.setDate(validUntil.getDate() + 1);
             }
 
             let org = user.organizations.find((o) => o.id === user.settings.defaultOrganization) ?? user.organizations[0];
