@@ -1,7 +1,6 @@
-import {randomUUID} from "crypto";
 import * as bcrypt from 'bcrypt';
 import {getUserByEmail} from "./user-service";
-import {Session, insertSession} from "./session-service";
+import {Session, insertSession, makeSessionId} from "./session-service";
 
 
 export async function login(email: string, password: string, permanentSession: boolean = false): Promise<{
@@ -26,7 +25,7 @@ export async function login(email: string, password: string, permanentSession: b
             }
 
             let session: Session = {
-                sessionId: randomUUID() + randomUUID() + randomUUID() + randomUUID(),
+                sessionId: makeSessionId(),
                 validUntil,
                 user,
                 organization: org,

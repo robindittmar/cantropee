@@ -5,6 +5,7 @@ import {User, getUserById} from "./user-service";
 import {Organization} from "./organization-service";
 import {unauthorized} from "../core/response-helpers";
 import {MoreThan} from "typeorm";
+import {randomUUID} from "crypto";
 
 export interface RequestWithSession extends Request {
     session?: Session;
@@ -28,6 +29,14 @@ export const getSessionFromReq = (req: Request): Session => {
     }
     return session;
 }
+
+export const makeSessionId = (): string => {
+    const uuidNoDashes = () => {
+        return randomUUID().replace('-', '');
+    };
+
+    return uuidNoDashes() + uuidNoDashes() + uuidNoDashes() + uuidNoDashes();
+};
 
 export const validateSession = async (req: Request, res: Response, next: NextFunction) => {
     if (req.path === '/api/login' || req.path === '/api/invite/use' || req.path === '/api/invite/validate') {
