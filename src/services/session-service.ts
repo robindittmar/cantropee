@@ -32,7 +32,7 @@ export const getSessionFromReq = (req: Request): Session => {
 
 export const makeSessionId = (): string => {
     const uuidNoDashes = () => {
-        return randomUUID().replace(/-/, '');
+        return randomUUID().replace(/-/g, '');
     };
 
     return uuidNoDashes() + uuidNoDashes() + uuidNoDashes() + uuidNoDashes();
