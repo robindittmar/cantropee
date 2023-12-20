@@ -135,16 +135,36 @@ export async function countUsersByRole(organizationId: string, roleId: string): 
     });
 }
 
-export async function updateUserPassword(user: User, password: string): Promise<boolean> {
-    const passwordHash = await bcrypt.hash(password, 4);
+export async function updateUserPassword(user: User, newPassword: string, currentPassword: string | undefined): Promise<void> {
+    const model = await AppDataSource.manager.findOne(UserModel, {
+        select: {
+            id: true,
+            uuid: true,
+            email: true,
+            password: true,
+            require_password_change: true,
+            insert_timestamp: true,
+        },
+        where: {
+            uuid: user.id,
+        }
+    });
+    if (!model) {
+        throw new ServerError(404, 'User not found');
+    }
 
-    const model = new UserModel();
-    model.uuid = user.id;
-    model.password = passwordHash;
+    // When password change is required the frontend will not send
+    // the current password, so we only check it if the user changes
+    // their password on their own behalf.
+    if (!model.require_password_change) {
+        if (!await bcrypt.compare(currentPassword ?? '', model.password)) {
+            throw new ServerError(400, 'Current password is not correct');
+        }
+    }
+
+    model.password = await bcrypt.hash(newPassword, 4);
     model.require_password_change = false;
     await AppDataSource.manager.save(model);
-
-    return true;
 }
 
 export async function updateUserSettings(user: User): Promise<boolean> {

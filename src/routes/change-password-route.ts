@@ -1,7 +1,7 @@
 import express from 'express';
 import {getSessionFromReq} from "../services/session-service";
 import {updateUserPassword} from "../services/user-service";
-import {ServerError} from "../core/server-error";
+import {badRequestMissingField} from "../core/response-helpers";
 
 export const changePasswordRouter = express.Router();
 
@@ -10,17 +10,14 @@ changePasswordRouter.post('/', async (req, res, next) => {
     try {
         const session = getSessionFromReq(req);
 
-        const {password} = req.body;
-        if (!password || typeof password !== 'string') {
-            throw new ServerError(400, 'field "password" is missing or not a string');
+        const {currentPassword, newPassword} = req.body;
+        if (!newPassword || typeof newPassword !== 'string') {
+            badRequestMissingField(res, 'newPassword');
+            return;
         }
 
-        let success = await updateUserPassword(session.user, password);
-        if (!success) {
-            res.status(400);
-        }
-
-        res.send({success: success});
+        await updateUserPassword(session.user, newPassword, currentPassword);
+        res.send({success: true});
     } catch (err) {
         next(err);
     }
