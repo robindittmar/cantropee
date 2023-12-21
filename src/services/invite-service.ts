@@ -83,6 +83,15 @@ export async function useInvite(inviteId: string, orgName: string, currency: str
         throw new ServerError(404, 'Invite has already been used');
     }
 
+    const user = await AppDataSource.manager.findOne(UserModel, {
+        where: {
+            email: userEmail
+        }
+    });
+    if (user) {
+        throw new ServerError(409, 'E-Mail is already in use');
+    }
+
     await AppDataSource.manager.transaction(async t => {
         const user = new UserModel();
         user.uuid = randomUUID();
