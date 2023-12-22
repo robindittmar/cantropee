@@ -6,6 +6,7 @@ import {UserSettingsModel} from "../models/user-settings-model";
 import * as bcrypt from "bcrypt";
 import {randomUUID} from "crypto";
 import {addUserToOrganization, createOrganization} from "./organization-service";
+import {getEmailAvailable} from "./user-service";
 
 export interface Invite {
     id: string;
@@ -83,12 +84,7 @@ export async function useInvite(inviteId: string, orgName: string, currency: str
         throw new ServerError(404, 'Invite has already been used');
     }
 
-    const user = await AppDataSource.manager.findOne(UserModel, {
-        where: {
-            email: userEmail
-        }
-    });
-    if (user) {
+    if (!await getEmailAvailable(userEmail)) {
         throw new ServerError(409, 'E-Mail is already in use');
     }
 

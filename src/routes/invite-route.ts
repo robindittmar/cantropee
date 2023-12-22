@@ -5,6 +5,7 @@ import {ServerError} from "../core/server-error";
 import {badRequest, badRequestMissingField} from "../core/response-helpers";
 import {VALID_CURRENCIES} from "../core/currency";
 import {validateEmail} from "../core/validate-helper";
+import {getEmailAvailable} from "../services/user-service";
 
 export const inviteRouter = express.Router();
 
@@ -23,11 +24,35 @@ inviteRouter.post('/validate', async (req, res, next) => {
     try {
         const {inviteId} = req.body;
         if (!inviteId || typeof inviteId !== 'string') {
-            throw new ServerError(400, 'inviteId parameter is not string');
+            badRequestMissingField(res, 'inviteId');
+            return;
         }
 
         const valid = await validateInvite(inviteId);
         res.send({valid});
+    } catch (err) {
+        next(err);
+    }
+});
+
+inviteRouter.post('/check-mail', async (req, res, next) => {
+    try {
+        let {inviteId, email} = req.body;
+        if (!inviteId || typeof inviteId !== 'string') {
+            badRequestMissingField(res, 'inviteId');
+            return;
+        }
+        if (!email || typeof email !== 'string') {
+            badRequestMissingField(res, 'email');
+            return;
+        }
+
+        if (!await validateInvite(inviteId)) {
+            badRequest(res, 'The provided invite is not valid');
+        }
+
+        const avail = await getEmailAvailable(email);
+        res.send({available: avail});
     } catch (err) {
         next(err);
     }

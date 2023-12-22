@@ -61,6 +61,16 @@ export async function getUserById(id: string): Promise<User> {
     };
 }
 
+export async function getEmailAvailable(email: string): Promise<boolean> {
+    const user = await AppDataSource.manager.findOne(UserModel, {
+        where: {
+            email: email,
+        }
+    });
+
+    return user === null;
+}
+
 export async function getUserByEmail(email: string): Promise<[User, string, boolean]> {
     const model = await AppDataSource.manager.findOne(UserModel, {
         select: {

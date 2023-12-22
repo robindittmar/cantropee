@@ -6,6 +6,7 @@ import {Organization} from "./organization-service";
 import {unauthorized} from "../core/response-helpers";
 import {MoreThan} from "typeorm";
 import {randomUUID} from "crypto";
+import {ServerError} from "../core/server-error";
 
 export interface RequestWithSession extends Request {
     session?: Session;
@@ -25,7 +26,8 @@ let sessionCache: {
 export const getSessionFromReq = (req: Request): Session => {
     const session = (req as RequestWithSession).session;
     if (!session) {
-        throw new Error('Tried to get session from within unsecure endpoint');
+        console.error(`Tried to get session from within insecure endpoint: ${req.path}`);
+        throw new ServerError();
     }
     return session;
 }
@@ -39,7 +41,7 @@ export const makeSessionId = (): string => {
 };
 
 export const validateSession = async (req: Request, res: Response, next: NextFunction) => {
-    if (req.path === '/api/login' || req.path === '/api/invite/use' || req.path === '/api/invite/validate') {
+    if (req.path === '/api/login' || (req.path !== '/api/invite' && req.path.startsWith('/api/invite'))) {
         next();
         return;
     }
