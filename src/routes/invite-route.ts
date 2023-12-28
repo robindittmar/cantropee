@@ -4,7 +4,7 @@ import {getSessionFromReq} from "../services/session-service";
 import {ServerError} from "../core/server-error";
 import {badRequest, badRequestMissingField} from "../core/response-helpers";
 import {VALID_CURRENCIES} from "../core/currency";
-import {validateEmail} from "../core/validate-helper";
+import {validateEmail, validateOrganizationName, validatePassword} from "../core/validate-helper";
 import {getEmailAvailable} from "../services/user-service";
 
 export const inviteRouter = express.Router();
@@ -100,6 +100,13 @@ inviteRouter.post('/use', async (req, res, next) => {
         if (!VALID_CURRENCIES.includes(currency)) {
             badRequest(res, `${currency} is not a valid currency`);
             return;
+        }
+
+        if (!validatePassword(password)) {
+            badRequest(res, 'password does not fulfill system criteria');
+        }
+        if (!validateOrganizationName(organization)) {
+            badRequest(res, `${organization} is not a valid organization name`);
         }
 
         await useInvite(inviteId, organization, currency, useTaxes, email, password);
