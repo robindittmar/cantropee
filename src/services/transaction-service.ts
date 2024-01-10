@@ -5,6 +5,7 @@ import {bookPendingRecurringTransactions, updateTransactionLink} from "./recurri
 import {ServerError} from "../core/server-error";
 import {Between, EntityManager, In, Like} from "typeorm";
 import {BalanceModel} from "../models/balance-model";
+import {randomUUID} from "crypto";
 
 
 export interface Transaction {
@@ -293,6 +294,7 @@ export async function insertTransaction(transaction: EntityManager, organization
     }
 
     const model = new TransactionModel();
+    model.uuid = randomUUID();
     model.organization_uuid = organizationId;
     model.created_by_uuid = userId;
     model.effective_timestamp = t.effectiveTimestamp;

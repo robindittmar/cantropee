@@ -14,6 +14,7 @@ import {EntityManager, LessThanOrEqual, MoreThan} from "typeorm";
 import {RecurringBookedModel} from "../models/recurring-booked-model";
 import {TransactionModel} from "../models/transaction-model";
 import {ServerError} from "../core/server-error";
+import {randomUUID} from "crypto";
 
 export enum ExecutionPolicy {
     StartOfMonth,
@@ -190,6 +191,7 @@ export async function insertRecurringTransaction(manager: EntityManager, organiz
     const lookup = await getCategoriesReverseLookup(organizationId);
 
     const model = new RecurringTransactionModel();
+    model.uuid = randomUUID();
     model.organization_uuid = organizationId;
     model.created_by_uuid = userId;
     model.timezone = recurring.timezone;
