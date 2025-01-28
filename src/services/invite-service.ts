@@ -33,6 +33,7 @@ export async function createInvite(userId: string): Promise<Invite> {
     now.setUTCMonth(now.getUTCMonth() + 1);
 
     const model = new InviteModel();
+    model.uuid = randomUUID();
     model.issued_by = userId;
     model.expires_at = now;
     await AppDataSource.manager.save(model);
