@@ -1,7 +1,9 @@
 # cantropee
 
-cantropee is the backend for cantropee-frontend, providing an HTTP api using [Node.js](https://nodejs.org)
-and [express](https://expressjs.com/).
+cantropee is a finance web application for managing multiple virtual accounts.
+
+The `cantropee` component in this repository is the backend used by the `cantropee-frontend` component, providing an
+HTTP api using [Node.js](https://nodejs.org) and [express](https://expressjs.com/).
 
 ## Running
 
